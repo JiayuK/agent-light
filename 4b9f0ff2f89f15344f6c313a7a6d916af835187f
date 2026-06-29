@@ -1,0 +1,36 @@
+packaging/agent-light.spec
+  bf6a31a711e40c05 116-117
+agent_light/detector/cli_host.py
+  bf6a31a711e40c05 1-178
+agent_light/platform/focus_darwin.py
+  bf6a31a711e40c05 195-255,257-263,271-275,277,281,285-286
+agent_light/platform/focus_win32.py
+  bf6a31a711e40c05 97-107,109-126
+pyproject.toml
+  bf6a31a711e40c05 7
+agent_light/detector/cli_tool_scanner.py
+  bf6a31a711e40c05 10,15,142-144,195-213,231-232,266-268,271,274,299-300,380,391-394,406,413-416,443-445,463-467,489,495-497,499-500
+agent_light/__init__.py
+  bf6a31a711e40c05 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.6-codex",
+  "base_commit_sha": "4b9f0ff2f89f15344f6c313a7a6d916af835187f",
+  "prompts": {
+    "bf6a31a711e40c05": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "cc93634d-7854-4eb5-9ee3-d1cb75b941bb",
+        "model": "default"
+      },
+      "human_author": "JiayuK",
+      "messages": [],
+      "total_additions": 353,
+      "total_deletions": 68,
+      "accepted_lines": 347,
+      "overriden_lines": 0,
+      "messages_url": "https://codeaiapi.xinfei-inc.cn/cas/930e5a6be78cad20824939076af3b921eaff25d893582c3421b00a4a7e16a28c"
+    }
+  }
+}
