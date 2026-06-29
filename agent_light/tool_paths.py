@@ -357,3 +357,20 @@ def get_resolved_tool_paths() -> dict[str, str]:
         "claude_projects_root": str(get_claude_projects_root()),
         "claude_desktop_sessions_dir": str(get_claude_desktop_sessions_dir()),
     }
+
+
+def format_user_path(path: str | Path) -> str:
+    """Render a path for user-facing output (home → ~, no machine-specific prefix)."""
+    raw = Path(path).expanduser()
+    try:
+        resolved = raw.resolve()
+    except OSError:
+        resolved = raw
+    home = Path.home()
+    try:
+        rel = resolved.relative_to(home)
+    except ValueError:
+        return str(resolved)
+    if not rel.parts:
+        return "~"
+    return f"~/{rel.as_posix()}"

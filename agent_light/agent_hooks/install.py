@@ -10,7 +10,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..constants import APP_SLUG
-from ..tool_paths import get_claude_config_dir, get_codex_home, get_cursor_config_dir
+from ..runtime import relay_executable
+from ..tool_paths import format_user_path, get_claude_config_dir, get_codex_home, get_cursor_config_dir
 from ..tool_presence import (
     TOOL_CLAUDE,
     TOOL_CODEX,
@@ -18,7 +19,7 @@ from ..tool_presence import (
     get_available_tools,
     is_tool_available,
 )
-from .store import HOOKS_ROOT, PYTHON_PATH_FILE
+from .store import HOOKS_ROOT, PYTHON_PATH_FILE, RELAY_PATH_FILE
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +90,14 @@ set -euo pipefail
 
 export AGENT_LIGHT_TOOL={tool}
 
+RELAY=""
+if [[ -f "{data_home}/agent-hooks/relay.txt" ]]; then
+  RELAY="$(tr -d '\\n' < "{data_home}/agent-hooks/relay.txt")"
+fi
+if [[ -n "$RELAY" && -x "$RELAY" ]]; then
+  exec "$RELAY"
+fi
+
 PYTHON=""
 if [[ -f "{data_home}/agent-hooks/python.txt" ]]; then
   PYTHON="$(tr -d '\\n' < "{data_home}/agent-hooks/python.txt")"
@@ -111,9 +120,18 @@ exec "$PYTHON" -m agent_light.agent_hooks.relay
 """
 
 
-def _save_python_path(python_exe: str) -> None:
+def _save_hook_runtime(python_exe: str) -> None:
     HOOKS_ROOT.mkdir(parents=True, exist_ok=True)
     PYTHON_PATH_FILE.write_text(python_exe + "\n", encoding="utf-8")
+    relay = relay_executable()
+    if relay is not None:
+        RELAY_PATH_FILE.write_text(str(relay) + "\n", encoding="utf-8")
+    elif RELAY_PATH_FILE.is_file():
+        RELAY_PATH_FILE.unlink(missing_ok=True)
+
+
+def _save_python_path(python_exe: str) -> None:
+    _save_hook_runtime(python_exe)
 
 
 def _write_script(path: Path, tool: str) -> None:
@@ -526,7 +544,7 @@ def _install_tool(paths: HookToolPaths, python_exe: str, tool_key: str) -> HookT
         return HookToolResult(
             tool_key,
             True,
-            f"未检测到该工具，已跳过（{paths.config_dir}）",
+            f"未检测到该工具，已跳过（{format_user_path(paths.config_dir)}）",
             skipped=True,
         )
 
@@ -535,7 +553,7 @@ def _install_tool(paths: HookToolPaths, python_exe: str, tool_key: str) -> HookT
         return HookToolResult(
             tool_key,
             True,
-            f"已安装且配置完整（{paths.config_dir}）",
+            f"已安装且配置完整（{format_user_path(paths.config_dir)}）",
             skipped=True,
             config_file=paths.config_file if paths.config_file.is_file() else None,
         )
@@ -558,9 +576,9 @@ def _install_tool(paths: HookToolPaths, python_exe: str, tool_key: str) -> HookT
 
         if had_partial:
             issue_hint = f"（修复：{'、'.join(issues)}）" if issues else ""
-            message = f"已修复并校验 → {config_file}{issue_hint}"
+            message = f"已修复并校验 → {format_user_path(config_file)}{issue_hint}"
         else:
-            message = f"已安装 → {config_file}"
+            message = f"已安装 → {format_user_path(config_file)}"
         return HookToolResult(
             tool_key,
             True,
@@ -604,10 +622,10 @@ def _uninstall_tool(paths: HookToolPaths, layout: str, tool_key: str) -> HookToo
             return HookToolResult(
                 paths.tool,
                 True,
-                f"已移除 ({paths.config_dir})",
+                f"已移除 ({format_user_path(paths.config_dir)})",
                 config_file=paths.config_file if paths.config_file.is_file() else None,
             )
-        return HookToolResult(paths.tool, True, f"未安装 ({paths.config_dir})")
+        return HookToolResult(paths.tool, True, f"未安装 ({format_user_path(paths.config_dir)})")
     except OSError as exc:
         logger.exception("Failed to uninstall %s hooks", paths.tool)
         return HookToolResult(paths.tool, False, f"删除失败: {exc}")
@@ -666,7 +684,13 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description="Install or remove Agent Light agent hooks")
     parser.add_argument("--uninstall", action="store_true", help="Remove Agent Light hooks only")
+    parser.add_argument("--paths", action="store_true", help="Print resolved tool paths")
     args = parser.parse_args()
+
+    if args.paths:
+        from ..path_check import main as path_main
+
+        raise SystemExit(path_main())
 
     if args.uninstall:
         results = uninstall_all_hooks()

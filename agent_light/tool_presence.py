@@ -8,6 +8,8 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
+from .tool_paths import format_user_path
+
 logger = logging.getLogger(__name__)
 
 TOOL_CURSOR = "cursor"
@@ -267,14 +269,14 @@ def _detect_cursor() -> ToolPresence:
 
     for user_data in _cursor_user_data_candidates():
         if _path_is_dir(user_data):
-            return ToolPresence(TOOL_CURSOR, True, f"检测到数据目录 {user_data}", config_dir)
+            return ToolPresence(TOOL_CURSOR, True, f"检测到数据目录 {format_user_path(user_data)}", config_dir)
 
     if _path_is_dir(config_dir) and _dir_has_entries(config_dir):
-        return ToolPresence(TOOL_CURSOR, True, f"检测到配置目录 {config_dir}", config_dir)
+        return ToolPresence(TOOL_CURSOR, True, f"检测到配置目录 {format_user_path(config_dir)}", config_dir)
 
     for marker in ("hooks.json", "projects", "hooks"):
         if _path_is_file(config_dir / marker) or _dir_has_entries(config_dir / marker):
-            return ToolPresence(TOOL_CURSOR, True, f"检测到 {config_dir / marker}", config_dir)
+            return ToolPresence(TOOL_CURSOR, True, f"检测到 {format_user_path(config_dir / marker)}", config_dir)
 
     if find_cursor_app_bundles():
         return ToolPresence(TOOL_CURSOR, True, "检测到 Cursor.app", config_dir)
@@ -290,11 +292,11 @@ def _detect_claude() -> ToolPresence:
     for marker in ("settings.json", "projects", "hooks"):
         target = config_dir / marker
         if _path_is_file(target) or _dir_has_entries(target):
-            return ToolPresence(TOOL_CLAUDE, True, f"检测到 {target}", config_dir)
+            return ToolPresence(TOOL_CLAUDE, True, f"检测到 {format_user_path(target)}", config_dir)
 
     bins = find_claude_code_cli_binaries()
     if bins:
-        return ToolPresence(TOOL_CLAUDE, True, f"检测到 CLI {bins[0]}", config_dir)
+        return ToolPresence(TOOL_CLAUDE, True, f"检测到 CLI {format_user_path(bins[0])}", config_dir)
 
     return ToolPresence(TOOL_CLAUDE, False, "未检测到 Claude Code", config_dir)
 
@@ -307,11 +309,11 @@ def _detect_codex() -> ToolPresence:
     for marker in ("hooks.json", "config.toml", "sessions", "hooks"):
         target = config_dir / marker
         if _path_is_file(target) or _dir_has_entries(target):
-            return ToolPresence(TOOL_CODEX, True, f"检测到 {target}", config_dir)
+            return ToolPresence(TOOL_CODEX, True, f"检测到 {format_user_path(target)}", config_dir)
 
     bins = find_codex_cli_binaries()
     if bins:
-        return ToolPresence(TOOL_CODEX, True, f"检测到 CLI {bins[0]}", config_dir)
+        return ToolPresence(TOOL_CODEX, True, f"检测到 CLI {format_user_path(bins[0])}", config_dir)
 
     return ToolPresence(TOOL_CODEX, False, "未检测到 Codex", config_dir)
 

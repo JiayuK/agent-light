@@ -7,7 +7,7 @@ from pathlib import Path
 
 from .constants import APP_DATA_DIR
 from .settings import get_tool_paths
-from .tool_paths import get_resolved_tool_paths, invalidate_tool_paths_cache
+from .tool_paths import format_user_path, get_resolved_tool_paths, invalidate_tool_paths_cache
 from .tool_presence import (
     TOOL_LABELS,
     format_available_tools_summary,
@@ -35,7 +35,7 @@ def main() -> int:
     if configured:
         print("\n[settings.json 覆盖]")
         for key, value in configured.items():
-            print(f"  {key}: {value}")
+            print(f"  {key}: {format_user_path(value)}")
     else:
         print("\n[settings.json] 未配置（完全自动发现）")
 
@@ -47,8 +47,7 @@ def main() -> int:
     print("\n[解析路径]")
     for key, value in get_resolved_tool_paths().items():
         mark = {"file": "✓", "dir": "✓", "missing": "○"}[_status(value)]
-        print(f"  {mark} {key}")
-        print(f"      {value}")
+        print(f"  {mark} {key}: {format_user_path(value)}")
 
     print("\n[工具检测详情]")
     for tool, presence in get_all_tool_presence().items():
@@ -57,14 +56,14 @@ def main() -> int:
         print(f"  {label}: {state}")
         print(f"      {presence.reason}")
         if presence.config_dir:
-            print(f"      config → {presence.config_dir}")
+            print(f"      config → {format_user_path(presence.config_dir)}")
 
     available = [t for t, p in get_all_tool_presence().items() if p.available]
     if not available:
         print(
             "\n提示：未发现 AI 工具。安装 Cursor / Claude Code / Codex 后至少运行一次，"
             "或在 settings.json 配置 tool_paths（"
-            f"{APP_DATA_DIR / 'settings.json'}）。",
+            f"{format_user_path(APP_DATA_DIR / 'settings.json')}）。",
             file=sys.stderr,
         )
         return 1

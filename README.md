@@ -20,30 +20,43 @@ macOS 菜单栏 + 悬浮面板，实时监控 **Cursor**、**Claude Code**、**C
 
 | 项目 | 要求 |
 |------|------|
-| 系统 | macOS 12.0+ |
-| Python | 3.9+（系统自带或 [Homebrew](https://brew.sh) 均可） |
+| 系统 | macOS 12.0+（Apple Silicon / Intel） |
+| Python | **独立版无需安装**；源码版需 3.9+ |
 | 权限 | **辅助功能 (Accessibility)** — 必须授予 |
 
 ### 直接下载（推荐）
 
-无需 `git clone`，从 GitHub Releases 下载即可使用：
+无需 Python、无需 `pip install`，解压即用：
 
-1. 打开 **[Releases 页面](https://github.com/JiayuK/agent-light/releases/latest)**，下载 `agent-light-x.x.x-macos.zip`
-2. 解压到任意目录（例如 `~/Applications/agent-light`）
-3. 在终端进入该目录并启动：
+1. 打开 **[Releases 页面](https://github.com/JiayuK/agent-light/releases/latest)**
+2. 下载 **`agent-light-x.x.x-macos-app.zip`**（独立应用，约 20MB）
+3. 解压后进入目录，执行：
 
 ```bash
-cd ~/Downloads/agent-light-1.0.0   # 按你的解压路径修改
+cd <解压后的目录>   # 例如解压到 ~/Applications 后进入对应文件夹
 
-chmod +x run.sh
-./run.sh
+chmod +x run-app.sh
+./run-app.sh
 ```
 
-首次运行会自动创建虚拟环境并安装依赖，与下方「克隆并运行」效果相同。
+看到 `✓ Agent Light 已启动` 后，菜单栏会出现监控图标。也可双击 `Agent Light.app` 启动（推荐仍用 `run-app.sh`，便于 `stop` / `status` / 安装 Hook）。
 
-> **升级**：下载新版 zip 解压覆盖原目录（或解压到新目录），再执行 `./run.sh` 即可；`~/.agent-light/` 中的设置与自定义风格会保留。
+| 命令 | 说明 |
+|------|------|
+| `./run-app.sh` | 后台启动（默认） |
+| `./run-app.sh verbose` | 前台调试并写日志 |
+| `./run-app.sh stop` | 停止 |
+| `./run-app.sh status` | 查看状态 |
+| `./run-app.sh install-hooks` | 安装 Agent Hooks |
+| `./run-app.sh paths` | 检测本机 AI 工具路径 |
 
-### 克隆并运行
+> **升级**：下载新版 zip，解压覆盖（或新目录），再 `./run-app.sh`；`~/.agent-light/` 设置会保留。
+
+> **架构**：当前发布包在 **Apple Silicon (arm64)** Mac 上构建。Intel Mac 请使用下方「源码版」自行运行。
+
+### 源码版（开发者）
+
+需要本机 Python 3.9+，首次运行会自动 `pip install` 依赖：
 
 ```bash
 git clone https://github.com/JiayuK/agent-light.git
@@ -77,9 +90,12 @@ agent-light --verbose    # 启用日志
 
 每台 Mac **只需配置一次**：
 
-**系统设置 → 隐私与安全性 → 辅助功能** → 添加你用来运行本工具的终端（Terminal / iTerm / Warp 等）并打开开关。
+**系统设置 → 隐私与安全性 → 辅助功能** → 添加并打开开关：
 
-`./run.sh` 启动时会自动检测；若缺失会尝试打开系统设置页面。
+- 使用 **`./run-app.sh` / `./run.sh`**：添加对应**终端**（Terminal / iTerm / Warp 等）
+- **双击 `Agent Light.app`** 启动：添加 **Agent Light**
+
+`run-app.sh` / `run.sh` 启动时会自动检测；若缺失会尝试打开系统设置页面。
 
 ---
 
@@ -375,19 +391,22 @@ Agent Light **完全本地运行**，不向任何远程服务器上传数据。
 
 ```bash
 # 1. 更新 pyproject.toml 与 agent_light/__init__.py 中的版本号
-# 2. 构建发布包
-chmod +x scripts/build-release.sh
+# 2. 构建全部发布包（独立 app + 源码包）
+chmod +x scripts/build-release.sh scripts/build-app.sh
 ./scripts/build-release.sh
 
 # 3. 打 tag 并发布到 GitHub（将 1.0.0 换成新版本）
 git tag v1.0.0
 git push origin v1.0.0
 gh release create v1.0.0 \
-  dist/agent-light-1.0.0-macos.zip \
-  dist/agent-light-1.0.0-macos.tar.gz \
+  dist/agent-light-1.0.0-macos-app.zip \
+  dist/agent-light-1.0.0-macos-source.zip \
+  dist/agent-light-1.0.0-macos-source.tar.gz \
   --title "v1.0.0" \
-  --notes "macOS 源码发行包：解压后运行 ./run.sh 即可。"
+  --notes "独立 app 包：解压后 ./run-app.sh；源码包：./run.sh"
 ```
+
+仅构建独立 app：`./scripts/build-app.sh`（需本机 Python 3.9+ 与 PyInstaller，构建时自动安装）。
 
 发布前检查：
 

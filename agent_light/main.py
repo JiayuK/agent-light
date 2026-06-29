@@ -20,7 +20,7 @@ from AppKit import (
 from Foundation import NSObject
 
 from .detector import analyze_states, scan_instances
-from .tool_paths import get_resolved_tool_paths
+from .tool_paths import format_user_path, get_resolved_tool_paths
 from .constants import APP_DATA_DIR, APP_LOGGER_NAME
 from .logging_config import is_quiet_mode, setup_logging
 from .shutdown import (
@@ -437,7 +437,7 @@ def main() -> None:
         paths = get_resolved_tool_paths()
         logger.info("Tool paths resolved:")
         for key, value in paths.items():
-            logger.info("  %s → %s", key, value)
+            logger.info("  %s → %s", key, format_user_path(value))
 
     app = NSApplication.sharedApplication()
     app.setActivationPolicy_(NSApplicationActivationPolicyAccessory)

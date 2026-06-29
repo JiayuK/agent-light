@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build release archives for GitHub Releases (macOS source distribution).
+# Build release archives for GitHub Releases.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -8,19 +8,24 @@ cd "$ROOT"
 VERSION="${1:-$(grep -E '^version = ' pyproject.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')}"
 DIST="$ROOT/dist"
 PREFIX="agent-light-${VERSION}"
-ZIP="$DIST/${PREFIX}-macos.zip"
-TAR="$DIST/${PREFIX}-macos.tar.gz"
+SRC_ZIP="$DIST/${PREFIX}-macos-source.zip"
+SRC_TAR="$DIST/${PREFIX}-macos-source.tar.gz"
+APP_ZIP="$DIST/${PREFIX}-macos-app.zip"
 
 mkdir -p "$DIST"
-rm -f "$ZIP" "$TAR"
 
-echo "Building release ${VERSION}..."
+echo "==> Source archives (${VERSION})"
+rm -f "$SRC_ZIP" "$SRC_TAR"
+git archive --format=zip --prefix="${PREFIX}/" -o "$SRC_ZIP" HEAD
+git archive --format=tar.gz --prefix="${PREFIX}/" -o "$SRC_TAR" HEAD
+echo "✓ $SRC_ZIP"
+echo "✓ $SRC_TAR"
 
-git archive --format=zip --prefix="${PREFIX}/" -o "$ZIP" HEAD
-git archive --format=tar.gz --prefix="${PREFIX}/" -o "$TAR" HEAD
-
-echo "✓ $ZIP"
-echo "✓ $TAR"
 echo ""
-echo "Upload with:"
-echo "  gh release create v${VERSION} \"$ZIP\" \"$TAR\" --title \"v${VERSION}\" --notes \"...\""
+echo "==> Standalone app (${VERSION})"
+chmod +x scripts/build-app.sh
+./scripts/build-app.sh "$VERSION"
+
+echo ""
+echo "Release assets:"
+ls -lh "$SRC_ZIP" "$SRC_TAR" "$APP_ZIP"
