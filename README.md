@@ -24,6 +24,25 @@ macOS 菜单栏 + 悬浮面板，实时监控 **Cursor**、**Claude Code**、**C
 | Python | 3.9+（系统自带或 [Homebrew](https://brew.sh) 均可） |
 | 权限 | **辅助功能 (Accessibility)** — 必须授予 |
 
+### 直接下载（推荐）
+
+无需 `git clone`，从 GitHub Releases 下载即可使用：
+
+1. 打开 **[Releases 页面](https://github.com/JiayuK/agent-light/releases/latest)**，下载 `agent-light-x.x.x-macos.zip`
+2. 解压到任意目录（例如 `~/Applications/agent-light`）
+3. 在终端进入该目录并启动：
+
+```bash
+cd ~/Downloads/agent-light-1.0.0   # 按你的解压路径修改
+
+chmod +x run.sh
+./run.sh
+```
+
+首次运行会自动创建虚拟环境并安装依赖，与下方「克隆并运行」效果相同。
+
+> **升级**：下载新版 zip 解压覆盖原目录（或解压到新目录），再执行 `./run.sh` 即可；`~/.agent-light/` 中的设置与自定义风格会保留。
+
 ### 克隆并运行
 
 ```bash
@@ -352,8 +371,25 @@ Agent Light **完全本地运行**，不向任何远程服务器上传数据。
 
 **请勿提交**：`.venv/`、`agent_light.egg-info/`、`.env`、本机 `~/.agent-light/` 目录。
 
-## 上传前检查（维护者）
+## 发布 Release（维护者）
+
+```bash
+# 1. 更新 pyproject.toml 与 agent_light/__init__.py 中的版本号
+# 2. 构建发布包
+chmod +x scripts/build-release.sh
+./scripts/build-release.sh
+
+# 3. 打 tag 并发布到 GitHub（将 1.0.0 换成新版本）
+git tag v1.0.0
+git push origin v1.0.0
+gh release create v1.0.0 \
+  dist/agent-light-1.0.0-macos.zip \
+  dist/agent-light-1.0.0-macos.tar.gz \
+  --title "v1.0.0" \
+  --notes "macOS 源码发行包：解压后运行 ./run.sh 即可。"
+```
+
+发布前检查：
 
 - [ ] 确认未 `git add .venv` 或 `*.egg-info`
 - [ ] 内置 `assets/kun.*` 为娱乐向 GIF/图片，公开仓库请自行确认版权/肖像权是否可分发
-- [ ] 首次推送：`git init && git add . && git commit -m "Initial release"`
