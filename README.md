@@ -2,7 +2,7 @@
 
 **仓库地址**：[https://github.com/JiayuK/agent-light](https://github.com/JiayuK/agent-light)
 
-macOS 菜单栏 + 悬浮面板，实时监控 **Cursor**、**Claude Code**、**Codex**，以及 **Claude Desktop 编程模式** 的运行状态。
+macOS 菜单栏 / Windows 系统托盘 + 悬浮面板，实时监控 **Cursor**、**Claude Code**、**Codex**，以及 **Claude Desktop 编程模式** 的运行状态。
 
 ```
 🔴 运行中  →  模型正在生成 / 执行工具
@@ -18,13 +18,13 @@ macOS 菜单栏 + 悬浮面板，实时监控 **Cursor**、**Claude Code**、**C
 
 ### 系统要求
 
-| 项目 | 要求 |
-|------|------|
-| 系统 | macOS 12.0+（Apple Silicon / Intel） |
-| Python | **独立版无需安装**；源码版需 3.9+ |
-| 权限 | **辅助功能 (Accessibility)** — 必须授予 |
+| 项目 | macOS | Windows |
+|------|-------|---------|
+| 系统 | macOS 12.0+（Apple Silicon / Intel） | **Windows 10/11 x64** |
+| Python | 独立 app 无需安装；源码版需 3.9+ | 源码版需 3.9+（`run.ps1` 自动建 venv） |
+| 权限 | 辅助功能 (Accessibility) | 无额外系统权限（Hook 需写入用户配置目录） |
 
-### 直接下载（推荐）
+### 直接下载（macOS 推荐）
 
 无需 Python、无需 `pip install`，解压即用：
 
@@ -52,9 +52,42 @@ chmod +x run-app.sh
 
 > **升级**：下载新版 zip，解压覆盖（或新目录），再 `./run-app.sh`；`~/.agent-light/` 设置会保留。
 
-> **架构**：当前发布包在 **Apple Silicon (arm64)** Mac 上构建。Intel Mac 请使用下方「源码版」自行运行。
+> **架构**：macOS 独立 app 包为 **Apple Silicon (arm64)** 构建。Intel Mac 请用源码版 `./run.sh`。
 
-### 源码版（开发者）
+### Windows x64
+
+**方式一：独立包（推荐）**
+
+从 [Releases](https://github.com/JiayuK/agent-light/releases/latest) 下载 `agent-light-x.x.x-windows-x64.zip`，解压后：
+
+```powershell
+cd <解压目录>
+.\run-app.ps1
+```
+
+**方式二：源码运行**
+
+```powershell
+git clone https://github.com/JiayuK/agent-light.git
+cd agent-light
+.\run.ps1
+```
+
+| 命令 | 说明 |
+|------|------|
+| `.\run-app.ps1` / `.\run.ps1` | 后台启动（托盘 + 悬浮面板） |
+| `.\run-app.ps1 verbose` | 前台调试 |
+| `.\run-app.ps1 stop` | 停止 |
+| `.\run-app.ps1 install-hooks` | 安装 Agent Hooks |
+| `.\run-app.ps1 paths` | 检测本机 AI 工具路径 |
+
+功能与 macOS 对齐：交通灯 / 坤坤 / 自定义风格、「我爱发明」风格管理、Hook 安装提醒、Claude Desktop 编程会话检测。路径自动发现：`%APPDATA%\Cursor`、`%USERPROFILE%\.cursor`、`.claude`、`.codex` 等。
+
+> **测试说明**：Windows x64 版已在代码层完成开发与 CI 构建，**尚未在真实 Windows 设备上人工验证**。若在 Windows 上遇到问题，欢迎提 Issue；macOS 版为日常主力平台并已实测。
+
+维护者在本机构建 Windows 包：`.\scripts\build-app-win.ps1`（需在 Windows x64 上运行）；或推送 tag 后由 GitHub Actions `Build Windows x64` 自动构建。
+
+### 源码版（macOS 开发者）
 
 需要本机 Python 3.9+，首次运行会自动 `pip install` 依赖：
 
@@ -353,17 +386,15 @@ rm -rf .venv
 
 ```
 agent-light/
-├── run.sh                 # 推荐入口
-├── pyproject.toml
+├── run.sh / run.ps1       # macOS / Windows 入口
 ├── agent_light/
-│   ├── main.py            # 应用入口
-│   ├── constants.py       # 应用名与数据目录（无硬编码用户路径）
-│   ├── tool_paths.py      # 工具路径自动发现
-│   ├── tool_presence.py   # 检测本机安装了哪些 AI 工具
-│   ├── agent_hooks/       # Hook 安装、中继、状态映射
-│   ├── detector/          # 实例扫描与状态分析
-│   └── ui/                  # 悬浮面板、风格管理
-└── README.md
+│   ├── main.py            # 平台分发入口
+│   ├── platform/          # darwin / win32 应用壳
+│   ├── ui/                # macOS AppKit UI
+│   ├── ui_win/            # Windows Tk UI
+│   ├── agent_hooks/       # Hook 安装与中继
+│   └── detector/          # 实例扫描与状态分析
+└── packaging/             # PyInstaller spec（mac / win）
 ```
 
 完整功能说明与问题检测见 **[FEATURES.md](FEATURES.md)**。
@@ -374,39 +405,73 @@ MIT — 见 [LICENSE](LICENSE)。
 
 ## 隐私与数据
 
-Agent Light **完全本地运行**，不向任何远程服务器上传数据。
+Agent Light **完全本地运行**，不向任何远程服务器上传数据，**无遥测、无分析、无自动更新检查**（代码中无 HTTP 网络请求）。
+
+### 存储位置
+
+| 平台 | 用户数据目录 |
+|------|----------------|
+| macOS | `~/.agent-light/` |
+| Windows | `%USERPROFILE%\.agent-light\` |
+
+### 收集与用途
 
 | 数据 | 位置 | 说明 |
 |------|------|------|
-| Hook 状态信号 | `~/.agent-light/agent-hooks/states/` | 仅保存工具名、工作区路径、状态、事件类型；**不保存** prompt / 代码内容 |
-| 用户设置与自定义风格 | `~/.agent-light/settings.json`、`styles/` | 仅在本机，不随仓库分发 |
-| 日志（verbose 模式） | `~/.agent-light/logs/` | 可能包含路径、进程信息；默认不启用 |
-| 辅助功能读取 | 内存中临时使用 | 仅用于窗口枚举与聚焦；Claude Desktop **编程模式**优先读 Hook，普通聊天不解析窗口正文 |
+| Hook 状态信号 | `agent-hooks/states/` | 仅保存工具名、工作区路径、状态、事件类型；**不保存** prompt / 代码内容 |
+| 用户设置与自定义风格 | `settings.json`、`styles/` | 仅在本机，不随仓库分发 |
+| 日志（verbose 模式） | `logs/` | 可能包含路径、进程信息；**默认不启用** |
+| Hook 运行时路径 | `agent-hooks/python.txt`、`relay.txt` | 记录本机 Python 或 relay 可执行文件路径，供 Hook 脚本调用 |
+| macOS 辅助功能 | 内存中临时使用 | 窗口枚举与聚焦；Claude Desktop 编程模式优先读 Hook，普通聊天不解析窗口正文 |
+| Windows 窗口信息 | 内存中临时使用 | 通过 Win32 API 读取窗口标题以匹配实例；不持久化窗口内容 |
 
-安装 Hook 时会在 `~/.cursor`、`~/.claude`、`~/.codex` 写入中继脚本，并合并进你已有的 Hook 配置；卸载可从菜单栏移除。
+### Hook 写入的第三方配置
 
-**请勿提交**：`.venv/`、`agent_light.egg-info/`、`.env`、本机 `~/.agent-light/` 目录。
+安装 Hook 时会在本机 AI 工具配置目录写入中继脚本并合并 Hook 配置（**不覆盖**你已有的其他 Hook）：
+
+| 工具 | macOS | Windows |
+|------|-------|---------|
+| Cursor | `~/.cursor/hooks/` | `%USERPROFILE%\.cursor\hooks\` |
+| Claude Code | `~/.claude/` | `%USERPROFILE%\.claude\` |
+| Codex | `~/.codex/` | `%USERPROFILE%\.codex\` |
+
+卸载可从菜单栏 / 托盘选择「删除 Hook」，或通过 `run.sh` / `run.ps1 uninstall-hooks` 移除。
+
+**请勿提交**：`.venv/`、`*.egg-info/`、`.env`、本机 `~/.agent-light/` 或 `%USERPROFILE%\.agent-light\` 目录。
 
 ## 发布 Release（维护者）
 
 ```bash
 # 1. 更新 pyproject.toml 与 agent_light/__init__.py 中的版本号
-# 2. 构建全部发布包（独立 app + 源码包）
+# 2. 构建 macOS 发布包（本机 Apple Silicon）
 chmod +x scripts/build-release.sh scripts/build-app.sh
 ./scripts/build-release.sh
 
-# 3. 打 tag 并发布到 GitHub（将 1.0.0 换成新版本）
-git tag v1.0.0
-git push origin v1.0.0
-gh release create v1.0.0 \
-  dist/agent-light-1.0.0-macos-app.zip \
-  dist/agent-light-1.0.0-macos-source.zip \
-  dist/agent-light-1.0.0-macos-source.tar.gz \
-  --title "v1.0.0" \
-  --notes "独立 app 包：解压后 ./run-app.sh；源码包：./run.sh"
+# 3. Windows x64 包：在 Windows 上运行 .\scripts\build-app-win.ps1
+#    或推送 tag 后由 GitHub Actions 构建 artifact
+
+# 4. 打 tag 并发布
+git tag v1.1.0
+git push origin v1.1.0
+gh release create v1.1.0 \
+  dist/agent-light-1.1.0-macos-app.zip \
+  dist/agent-light-1.1.0-macos-source.zip \
+  dist/agent-light-1.1.0-macos-source.tar.gz \
+  dist/agent-light-1.1.0-windows-x64.zip \
+  --title "v1.1.0" \
+  --notes "macOS: ./run-app.sh | Windows x64: ./run-app.ps1（未经真机测试）"
 ```
 
-仅构建独立 app：`./scripts/build-app.sh`（需本机 Python 3.9+ 与 PyInstaller，构建时自动安装）。
+仅构建 macOS 独立 app：`./scripts/build-app.sh`
+
+Windows x64 独立包（需在 Windows 上执行）：
+
+```powershell
+.\scripts\build-app-win.ps1
+# 产出 dist/agent-light-x.x.x-windows-x64.zip
+```
+
+或通过 GitHub Actions `Build Windows x64` workflow 自动构建 artifact。
 
 发布前检查：
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import re
 import subprocess
+import sys
 from dataclasses import dataclass, field
 
 import psutil
@@ -13,8 +14,8 @@ from ..models import MonitoredInstance
 
 logger = logging.getLogger(__name__)
 
-SHELL_NAMES = {"zsh", "bash", "fish", "sh", "login"}
-TERMINAL_NAMES = {"iterm2", "iterm", "terminal", "warp", "alacritty", "kitty"}
+SHELL_NAMES = {"zsh", "bash", "fish", "sh", "login", "cmd.exe", "powershell.exe", "pwsh.exe"}
+TERMINAL_NAMES = {"iterm2", "iterm", "terminal", "warp", "alacritty", "kitty", "windowsterminal.exe", "wt.exe"}
 
 # GUI app processes to exclude when matching native "claude" binary name
 DESKTOP_APP_MARKERS = (
@@ -35,7 +36,7 @@ class CliToolDef:
     native_process_name: str | None = None  # e.g. "codex", "claude"
 
 
-CLI_TOOLS: list[CliToolDef] = [
+CLI_TOOLS_DARWIN: list[CliToolDef] = [
     CliToolDef(
         tool_name="codex",
         label="Codex",
@@ -76,6 +77,48 @@ CLI_TOOLS: list[CliToolDef] = [
         native_process_name="claude",
     ),
 ]
+
+CLI_TOOLS_WIN: list[CliToolDef] = [
+    CliToolDef(
+        tool_name="codex",
+        label="Codex",
+        node_cmd_re=re.compile(
+            r"(?:@openai/codex|node_global/bin/codex|/bin/codex(?:\.js)?|npx\s+.*codex)",
+            re.IGNORECASE,
+        ),
+        native_cmd_re=re.compile(
+            r"(?:codex-windows-x64"
+            r"|codex-win32-x64"
+            r"|codex-x86_64-pc-windows"
+            r"|\\codex\\codex\.exe"
+            r"|\bcodex(?:\.exe)?(?:\s|$))",
+            re.IGNORECASE,
+        ),
+        pgrep_pattern="codex",
+        native_process_name="codex",
+    ),
+    CliToolDef(
+        tool_name="claude-code",
+        label="Claude Code",
+        node_cmd_re=re.compile(
+            r"(?:@anthropic-ai/claude-code|node_global/bin/claude|claude-code/cli\.js|npx\s+.*claude-code)",
+            re.IGNORECASE,
+        ),
+        native_cmd_re=re.compile(
+            r"(?:claude-code-windows-x64"
+            r"|claude-win32-x64"
+            r"|claude-x86_64-pc-windows"
+            r"|\\claude\\claude\.exe"
+            r"|\.local\\bin\\claude\.exe"
+            r"|\bclaude(?:\.exe)?(?:\s|$))",
+            re.IGNORECASE,
+        ),
+        pgrep_pattern="claude",
+        native_process_name="claude",
+    ),
+]
+
+CLI_TOOLS: list[CliToolDef] = CLI_TOOLS_WIN if sys.platform == "win32" else CLI_TOOLS_DARWIN
 
 
 @dataclass
@@ -259,6 +302,8 @@ def _extract_terminal_info(pid: int) -> tuple[int | None, str, int | None]:
 
 
 def _collect_via_pgrep(tool: CliToolDef, seen: set[int]) -> list[CliProcess]:
+    if sys.platform == "win32":
+        return []
     result: list[CliProcess] = []
     try:
         out = subprocess.run(
@@ -390,7 +435,10 @@ def _build_sessions_for_tool(processes: list[CliProcess]) -> list[CliSession]:
 
 
 def _session_to_instance(s: CliSession) -> MonitoredInstance:
-    folder = s.cwd.rstrip("/").split("/")[-1] if s.cwd else "CLI"
+    if s.cwd:
+        folder = Path(s.cwd).name or "CLI"
+    else:
+        folder = "CLI"
     if s.terminal_name == "iTerm":
         display = f"{s.tool.label} · iTerm · {_short_title(folder)}"
     else:

@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+import sys
 import time
 from pathlib import Path
 
@@ -65,6 +66,10 @@ def _path_from_config(*keys: str, env_keys: tuple[str, ...] = ()) -> Path | None
 
 
 def _home_from_user_data_dir(user_data_dir: Path) -> Path | None:
+    if sys.platform == "win32":
+        from .platform.paths_win32 import home_from_user_data_dir
+
+        return home_from_user_data_dir(user_data_dir)
     parts = user_data_dir.parts
     if "Library" not in parts:
         return None
@@ -169,12 +174,17 @@ def get_cursor_user_data_dirs() -> list[Path]:
         if configured:
             candidates.append(configured)
         candidates.extend(_discover_cursor_user_data_dirs())
-        candidates.append(
-            Path.home() / "Library/Application Support/Cursor"
-        )
-        candidates.append(
-            Path.home() / "Library/Application Support/Cursor Nightly"
-        )
+        if sys.platform == "win32":
+            from .platform.paths_win32 import default_cursor_user_data_dirs
+
+            candidates.extend(default_cursor_user_data_dirs())
+        else:
+            candidates.append(
+                Path.home() / "Library/Application Support/Cursor"
+            )
+            candidates.append(
+                Path.home() / "Library/Application Support/Cursor Nightly"
+            )
 
         for path in candidates:
             key = str(path)
@@ -200,7 +210,13 @@ def get_cursor_user_data_dirs() -> list[Path]:
 
 def get_cursor_user_data_dir() -> Path:
     dirs = get_cursor_user_data_dirs()
-    return dirs[0] if dirs else Path.home() / "Library/Application Support/Cursor"
+    if dirs:
+        return dirs[0]
+    if sys.platform == "win32":
+        from .platform.paths_win32 import default_cursor_user_data_dir
+
+        return default_cursor_user_data_dir()
+    return Path.home() / "Library/Application Support/Cursor"
 
 
 def get_cursor_log_roots() -> list[Path]:
@@ -340,6 +356,10 @@ def get_claude_desktop_sessions_dir() -> Path:
     )
     if configured:
         return configured
+    if sys.platform == "win32":
+        from .platform.paths_win32 import default_claude_desktop_sessions_dir
+
+        return default_claude_desktop_sessions_dir()
     return Path.home() / "Library/Application Support/Claude/claude-code-sessions"
 
 

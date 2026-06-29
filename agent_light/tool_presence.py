@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import shutil
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -146,6 +147,10 @@ def find_claude_code_cli_binaries() -> list[Path]:
 
 
 def find_cursor_app_bundles() -> list[Path]:
+    if sys.platform == "win32":
+        from .platform.paths_win32 import cursor_install_candidates
+
+        return [p for p in cursor_install_candidates() if p.is_file()]
     found: list[Path] = []
     for apps_root in (Path("/Applications"), Path.home() / "Applications"):
         for app_name in _CURSOR_APP_NAMES:
@@ -156,6 +161,10 @@ def find_cursor_app_bundles() -> list[Path]:
 
 
 def _cursor_user_data_candidates() -> list[Path]:
+    if sys.platform == "win32":
+        from .platform.paths_win32 import default_cursor_user_data_dirs
+
+        return _unique_paths(list(default_cursor_user_data_dirs()))
     from .tool_paths import get_cursor_user_data_dirs
 
     dirs: list[Path] = []

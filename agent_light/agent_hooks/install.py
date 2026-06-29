@@ -23,10 +23,17 @@ from .store import HOOKS_ROOT, PYTHON_PATH_FILE, RELAY_PATH_FILE
 
 logger = logging.getLogger(__name__)
 
-CURSOR_SCRIPT = "agent-light-signal.sh"
-CLAUDE_SCRIPT = "agent-light-claude-signal.sh"
-CODEX_SCRIPT = "agent-light-codex-signal.sh"
-OUR_SCRIPTS = frozenset({CURSOR_SCRIPT, CLAUDE_SCRIPT, CODEX_SCRIPT})
+CURSOR_SCRIPT = "agent-light-signal.cmd" if sys.platform == "win32" else "agent-light-signal.sh"
+CLAUDE_SCRIPT = "agent-light-claude-signal.cmd" if sys.platform == "win32" else "agent-light-claude-signal.sh"
+CODEX_SCRIPT = "agent-light-codex-signal.cmd" if sys.platform == "win32" else "agent-light-codex-signal.sh"
+OUR_SCRIPTS = frozenset({
+    "agent-light-signal.sh",
+    "agent-light-signal.cmd",
+    "agent-light-claude-signal.sh",
+    "agent-light-claude-signal.cmd",
+    "agent-light-codex-signal.sh",
+    "agent-light-codex-signal.cmd",
+})
 
 CURSOR_EVENTS = (
     "sessionStart",
@@ -120,6 +127,33 @@ exec "$PYTHON" -m agent_light.agent_hooks.relay
 """
 
 
+def _wrapper_script_cmd(tool: str) -> str:
+    data_home = f"%USERPROFILE%\\.{APP_SLUG}"
+    return f"""@echo off
+setlocal EnableExtensions
+set AGENT_LIGHT_TOOL={tool}
+set "DATA={data_home}"
+if exist "%DATA%\\agent-hooks\\relay.txt" (
+  set /p RELAY=<"%DATA%\\agent-hooks\\relay.txt"
+  if exist "%RELAY%" (
+    "%RELAY%"
+    exit /b 0
+  )
+)
+if exist "%DATA%\\agent-hooks\\python.txt" (
+  set /p PYTHON=<"%DATA%\\agent-hooks\\python.txt"
+  if exist "%PYTHON%" (
+    "%PYTHON%" -m agent_light.agent_hooks.relay
+    exit /b 0
+  )
+)
+where py >nul 2>&1 && (py -3 -m agent_light.agent_hooks.relay & exit /b 0)
+where python >nul 2>&1 && (python -m agent_light.agent_hooks.relay & exit /b 0)
+echo {{}}
+exit /b 0
+"""
+
+
 def _save_hook_runtime(python_exe: str) -> None:
     HOOKS_ROOT.mkdir(parents=True, exist_ok=True)
     PYTHON_PATH_FILE.write_text(python_exe + "\n", encoding="utf-8")
@@ -135,8 +169,11 @@ def _save_python_path(python_exe: str) -> None:
 
 
 def _write_script(path: Path, tool: str) -> None:
-    path.write_text(_wrapper_script(tool), encoding="utf-8")
-    path.chmod(0o755)
+    if sys.platform == "win32":
+        path.write_text(_wrapper_script_cmd(tool), encoding="utf-8", newline="\r\n")
+    else:
+        path.write_text(_wrapper_script(tool), encoding="utf-8")
+        path.chmod(0o755)
 
 
 def _load_json(path: Path) -> dict:
@@ -167,13 +204,14 @@ def _cursor_paths() -> HookToolPaths:
     config_dir = get_cursor_config_dir()
     hooks_dir = config_dir / "hooks"
     script_path = hooks_dir / CURSOR_SCRIPT
+    hook_command = str(script_path) if sys.platform == "win32" else f"./hooks/{CURSOR_SCRIPT}"
     return HookToolPaths(
         tool="cursor",
         config_dir=config_dir,
         hooks_dir=hooks_dir,
         config_file=config_dir / "hooks.json",
         script_path=script_path,
-        hook_command=f"./hooks/{CURSOR_SCRIPT}",
+        hook_command=hook_command,
     )
 
 

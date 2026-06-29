@@ -6,7 +6,7 @@ import logging
 import re
 
 from ..models import LightState, MonitoredInstance
-from .ax_api import collect_window_text, get_app_windows
+from .window_api import collect_window_text, get_app_windows
 from .claude_desktop_hook_monitor import analyze_claude_desktop_hooks
 from .cli_hook_monitor import analyze_cli_hooks
 from .cursor_hook_monitor import analyze_cursor_hooks

@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller spec — Agent Light.app with bundled hook CLIs."""
+"""PyInstaller spec — Windows x64 one-folder distribution."""
 
 from pathlib import Path
 
@@ -9,19 +9,18 @@ block_cipher = None
 root = Path(SPEC).resolve().parent.parent
 assets = [(str(root / "agent_light" / "assets"), "agent_light/assets")]
 
-pyobjc_hidden = [
-    "AppKit",
-    "Foundation",
-    "Quartz",
-    "Cocoa",
-    "objc",
-    "PyObjCTools",
-    "PyObjCTools.AppHelper",
+hiddenimports = [
     "psutil",
     "PIL",
     "PIL.Image",
-]
-hiddenimports = pyobjc_hidden + collect_submodules("agent_light")
+    "PIL.ImageSequence",
+    "PIL.ImageTk",
+    "pystray",
+    "pystray._win32",
+    "tkinter",
+    "tkinter.filedialog",
+    "tkinter.messagebox",
+] + collect_submodules("agent_light")
 
 common = dict(
     pathex=[str(root)],
@@ -31,7 +30,7 @@ common = dict(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=["AppKit", "Foundation", "objc", "PyObjCTools"],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
@@ -103,20 +102,4 @@ coll = COLLECT(
     strip=False,
     upx=False,
     name="Agent Light",
-)
-
-app = BUNDLE(
-    coll,
-    name="Agent Light.app",
-    icon=None,
-    bundle_identifier="com.agent.light",
-    info_plist={
-        "CFBundleName": "Agent Light",
-        "CFBundleDisplayName": "Agent Light",
-        "CFBundleShortVersionString": "1.1.0",
-        "CFBundleVersion": "1.1.0",
-        "LSMinimumSystemVersion": "12.0",
-        "LSUIElement": True,
-        "NSHighResolutionCapable": True,
-    },
 )

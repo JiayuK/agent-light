@@ -52,14 +52,15 @@ def install_signal_handlers() -> None:
         sig_name = signal.Signals(signum).name
         logger.info("Received signal %s — scheduling shutdown on main thread", sig_name)
         try:
-            from PyObjCTools.AppHelper import callAfter
+            from .platform.main_thread import call_on_main_thread
+
             delegate = _delegate_getter() if _delegate_getter else None
             if delegate is not None:
-                callAfter(delegate.performShutdown_, f"signal:{sig_name}")
+                call_on_main_thread(delegate.performShutdown_, f"signal:{sig_name}")
             elif _shutdown_callback:
-                callAfter(_shutdown_callback, f"signal:{sig_name}")
+                call_on_main_thread(_shutdown_callback, f"signal:{sig_name}")
             else:
-                callAfter(sys.exit, 0)
+                call_on_main_thread(sys.exit, 0)
         except Exception as exc:
             logger.error("Signal handler failed: %s — forcing exit", exc)
             os._exit(0)
