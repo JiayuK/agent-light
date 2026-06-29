@@ -7,15 +7,14 @@ import re
 import subprocess
 import sys
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import psutil
 
 from ..models import MonitoredInstance
+from .cli_host import CliHostInfo, resolve_cli_host
 
 logger = logging.getLogger(__name__)
-
-SHELL_NAMES = {"zsh", "bash", "fish", "sh", "login", "cmd.exe", "powershell.exe", "pwsh.exe"}
-TERMINAL_NAMES = {"iterm2", "iterm", "terminal", "warp", "alacritty", "kitty", "windowsterminal.exe", "wt.exe"}
 
 # GUI app processes to exclude when matching native "claude" binary name
 DESKTOP_APP_MARKERS = (
@@ -140,8 +139,9 @@ class CliSession:
     node_pid: int | None
     native_pid: int | None
     shell_pid: int | None
-    terminal_pid: int | None
-    terminal_name: str
+    host_pid: int | None
+    host_app_name: str
+    host_kind: str
     cwd: str
     tty: str
     cmdline: str
@@ -192,6 +192,25 @@ def _name_matches_native(name: str, tool: CliToolDef) -> bool:
     return name.startswith(f"{base}-") or name.startswith(f"{base}_")
 
 
+def _argv0_basename(cmdline: str) -> str:
+    argv = cmdline.strip().split()
+    if not argv:
+        return ""
+    return argv[0].rstrip("/").split("/")[-1].lower()
+
+
+def _matches_native_tool(name: str, cmdline: str, tool: CliToolDef) -> bool:
+    if not tool.native_process_name:
+        return False
+    if _name_matches_native(name, tool):
+        return True
+    return _argv0_basename(cmdline) == tool.native_process_name.lower()
+
+
+def _is_node_cli_wrapper(name: str, cmdline: str, tool: CliToolDef) -> bool:
+    return name == "node" and _argv0_basename(cmdline) == tool.native_process_name.lower()
+
+
 def _is_minimal_native_argv(cmdline: str, tool: CliToolDef) -> bool:
     if not tool.native_process_name:
         return False
@@ -208,6 +227,8 @@ def _process_identity(name: str, cmdline: str, exe: str) -> str:
 
 def _looks_like_native_cli(name: str, cmdline: str, exe: str) -> bool:
     if any(_name_matches_native(name, tool) for tool in CLI_TOOLS):
+        return True
+    if any(_argv0_basename(cmdline) == tool.native_process_name.lower() for tool in CLI_TOOLS if tool.native_process_name):
         return True
     if cmdline.strip():
         return True
@@ -242,13 +263,15 @@ def _classify_process(proc: psutil.Process) -> CliProcess | None:
             return None
 
         for tool in CLI_TOOLS:
-            is_node = name == "node" and bool(tool.node_cmd_re.search(cmdline))
+            is_node = name == "node" and (
+                bool(tool.node_cmd_re.search(cmdline)) or _is_node_cli_wrapper(name, cmdline, tool)
+            )
             is_native = bool(tool.native_cmd_re.search(identity))
 
-            if tool.native_process_name and _name_matches_native(name, tool):
+            if _matches_native_tool(name, cmdline, tool):
                 if tool.tool_name == "claude-code" and _is_desktop_claude(name, cmd_lower, exe_lower):
                     continue
-                if _is_minimal_native_argv(cmdline, tool):
+                if _is_minimal_native_argv(cmdline, tool) or _argv0_basename(cmdline) == tool.native_process_name.lower():
                     is_native = True
                 elif "node_modules" in cmd_lower or is_native:
                     is_native = True
@@ -273,32 +296,8 @@ def _classify_process(proc: psutil.Process) -> CliProcess | None:
         return None
 
 
-def _walk_ancestors(pid: int) -> list[tuple[int, str]]:
-    chain: list[tuple[int, str]] = []
-    try:
-        cur = psutil.Process(pid)
-        for _ in range(20):
-            chain.append((cur.pid, cur.name().lower()))
-            if cur.ppid() in (0, cur.pid):
-                break
-            cur = psutil.Process(cur.ppid())
-    except (psutil.NoSuchProcess, psutil.AccessDenied):
-        pass
-    return chain
-
-
-def _extract_terminal_info(pid: int) -> tuple[int | None, str, int | None]:
-    shell_pid = None
-    terminal_pid = None
-    terminal_name = "Terminal"
-    for p, name in _walk_ancestors(pid):
-        if name in SHELL_NAMES and shell_pid is None:
-            shell_pid = p
-        if name in TERMINAL_NAMES:
-            terminal_pid = p
-            terminal_name = "iTerm" if "iterm" in name else name.capitalize()
-            break
-    return terminal_pid, terminal_name, shell_pid
+def _extract_host_info(pid: int) -> CliHostInfo:
+    return resolve_cli_host(pid)
 
 
 def _collect_via_pgrep(tool: CliToolDef, seen: set[int]) -> list[CliProcess]:
@@ -378,7 +377,7 @@ def _build_sessions_for_tool(processes: list[CliProcess]) -> list[CliSession]:
         if native:
             used.add(native.pid)
 
-        terminal_pid, terminal_name, shell_pid = _extract_terminal_info(node.pid)
+        host = _extract_host_info(node.pid)
         cwd = node.cwd or (native.cwd if native else "")
         tty = node.tty or (native.tty if native else "")
         pids = [node.pid] + ([native.pid] if native else [])
@@ -389,9 +388,10 @@ def _build_sessions_for_tool(processes: list[CliProcess]) -> list[CliSession]:
                 session_id=f"{tool.tool_name}-node-{node.pid}",
                 node_pid=node.pid,
                 native_pid=native.pid if native else None,
-                shell_pid=shell_pid,
-                terminal_pid=terminal_pid,
-                terminal_name=terminal_name,
+                shell_pid=host.shell_pid,
+                host_pid=host.host_pid,
+                host_app_name=host.host_app_name,
+                host_kind=host.host_kind,
                 cwd=cwd,
                 tty=tty,
                 cmdline=node.cmdline,
@@ -403,16 +403,17 @@ def _build_sessions_for_tool(processes: list[CliProcess]) -> list[CliSession]:
         if native.pid in used:
             continue
         used.add(native.pid)
-        terminal_pid, terminal_name, shell_pid = _extract_terminal_info(native.pid)
+        host = _extract_host_info(native.pid)
         sessions.append(
             CliSession(
                 tool=tool,
                 session_id=f"{tool.tool_name}-native-{native.pid}",
                 node_pid=None,
                 native_pid=native.pid,
-                shell_pid=shell_pid,
-                terminal_pid=terminal_pid,
-                terminal_name=terminal_name,
+                shell_pid=host.shell_pid,
+                host_pid=host.host_pid,
+                host_app_name=host.host_app_name,
+                host_kind=host.host_kind,
                 cwd=native.cwd,
                 tty=native.tty,
                 cmdline=native.cmdline,
@@ -439,7 +440,9 @@ def _session_to_instance(s: CliSession) -> MonitoredInstance:
         folder = Path(s.cwd).name or "CLI"
     else:
         folder = "CLI"
-    if s.terminal_name == "iTerm":
+    if s.host_kind == "ide":
+        display = f"{s.tool.label} · {s.host_app_name} · {_short_title(folder)}"
+    elif s.host_app_name == "iTerm":
         display = f"{s.tool.label} · iTerm · {_short_title(folder)}"
     else:
         display = f"{s.tool.label} · {_short_title(folder)}"
@@ -457,8 +460,11 @@ def _session_to_instance(s: CliSession) -> MonitoredInstance:
             "node_pid": s.node_pid,
             "native_pid": s.native_pid,
             "shell_pid": s.shell_pid,
-            "terminal_pid": s.terminal_pid,
-            "terminal_name": s.terminal_name,
+            "host_pid": s.host_pid,
+            "host_app_name": s.host_app_name,
+            "host_kind": s.host_kind,
+            "terminal_pid": s.host_pid if s.host_kind == "terminal" else None,
+            "terminal_name": s.host_app_name if s.host_kind == "terminal" else s.host_app_name,
             "tty": s.tty,
             "monitor_pids": s.pids,
         },
@@ -480,13 +486,17 @@ def scan_cli_instances() -> list[MonitoredInstance]:
             tool_name,
             len(sessions),
             [
-                f"{s.terminal_name}/{s.tty or s.node_pid} "
+                f"{s.host_app_name}/{s.tty or s.node_pid} "
                 f"cwd={s.cwd.split('/')[-1] if s.cwd else '?'}"
                 for s in sessions
             ],
         )
         for s in sessions:
-            if s.pids:
+            if not s.pids:
+                continue
+            try:
                 instances.append(_session_to_instance(s))
+            except Exception as exc:
+                logger.exception("Failed to build CLI instance for %s: %s", s.session_id, exc)
 
     return instances

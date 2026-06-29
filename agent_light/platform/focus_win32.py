@@ -94,10 +94,36 @@ def focus_cursor_instance(instance: MonitoredInstance) -> bool:
     return False
 
 
+def _find_host_window(pid: int, terms: list[str]):
+    if not terms:
+        return None
+    lowered = [term.lower() for term in terms]
+    for hwnd in get_app_windows(pid):
+        title = (get_window_title(hwnd) or "").lower()
+        if any(term in title for term in lowered):
+            return hwnd
+    return None
+
+
 def focus_cli_instance(instance: MonitoredInstance) -> bool:
-    terminal_pid = instance.extra.get("terminal_pid")
-    if terminal_pid and focus_process(int(terminal_pid)):
-        return True
+    host_kind = str(instance.extra.get("host_kind") or "terminal")
+    host_pid = instance.extra.get("host_pid") or instance.extra.get("terminal_pid")
+    folder = ""
+    cwd = instance.extra.get("cwd")
+    if isinstance(cwd, str) and cwd:
+        folder = PureWindowsPath(cwd).name
+
+    if host_pid:
+        pid = int(host_pid)
+        if host_kind == "ide" and folder:
+            matched = _find_host_window(pid, [folder])
+            if matched is not None and focus_window(pid, matched):
+                logger.info("Focused IDE window for %s", instance.display_name)
+                return True
+        if focus_process(pid):
+            logger.info("Focused host pid %s for %s", host_pid, instance.display_name)
+            return True
+
     shell_pid = instance.extra.get("shell_pid")
     if shell_pid and focus_process(int(shell_pid)):
         return True

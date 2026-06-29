@@ -192,9 +192,75 @@ def _focus_terminal_app(app_name: str) -> bool:
     return ok
 
 
+def _ide_applescript_names(app_name: str) -> list[str]:
+    names = [app_name]
+    if app_name == "Visual Studio Code":
+        names.append("Code")
+    elif app_name == "Visual Studio Code - Insiders":
+        names.append("Code - Insiders")
+    return names
+
+
+def _focus_host_window(pid: int, terms: list[str]) -> bool:
+    if not pid or not terms:
+        return False
+    matched = _find_cursor_window(pid, terms)
+    if matched is not None and focus_window(pid, matched):
+        return True
+    return False
+
+
+def _focus_ide_app(app_name: str, folder_name: str, host_pid: int | None) -> bool:
+    for script_app in _ide_applescript_names(app_name):
+        escaped_app = _escape_applescript(script_app)
+        if folder_name:
+            escaped_folder = _escape_applescript(folder_name)
+            script = f'''
+            tell application "{escaped_app}" to activate
+            delay 0.08
+            tell application "System Events"
+                tell process "{escaped_app}"
+                    set frontmost to true
+                    repeat with w in windows
+                        set wName to name of w
+                        if wName contains "{escaped_folder}" then
+                            perform action "AXRaise" of w
+                            try
+                                click w
+                            end try
+                            return wName
+                        end if
+                    end repeat
+                end tell
+            end tell
+            return "ok"
+            '''
+        else:
+            script = f'tell application "{escaped_app}" to activate\ndelay 0.05\nreturn "ok"'
+        ok, matched = _run_applescript(script)
+        if ok:
+            logger.info("Focused IDE %s: %s", script_app, matched or "activated")
+            return True
+
+    if host_pid:
+        terms = [folder_name] if folder_name else []
+        if _focus_host_window(host_pid, terms):
+            logger.info("Focused IDE window via AX for pid %s", host_pid)
+            return True
+        if focus_process(host_pid):
+            logger.info("Focused IDE process pid %s", host_pid)
+            return True
+    return False
+
+
 def focus_cli_instance(instance: MonitoredInstance) -> bool:
-    terminal_name = str(instance.extra.get("terminal_name") or "Terminal")
-    app_name = "iTerm" if "iterm" in terminal_name.lower() else "Terminal"
+    host_kind = str(instance.extra.get("host_kind") or "terminal")
+    host_app_name = str(
+        instance.extra.get("host_app_name")
+        or instance.extra.get("terminal_name")
+        or "Terminal"
+    )
+    host_pid = instance.extra.get("host_pid") or instance.extra.get("terminal_pid")
     folder = ""
     cwd = instance.extra.get("cwd")
     if isinstance(cwd, str) and cwd:
@@ -202,17 +268,22 @@ def focus_cli_instance(instance: MonitoredInstance) -> bool:
 
     tty = str(instance.extra.get("tty") or "")
 
-    if app_name == "iTerm" and folder and _focus_iterm_session(folder, tty):
+    if host_kind == "ide":
+        if _focus_ide_app(host_app_name, folder, int(host_pid) if host_pid else None):
+            return True
+
+    app_name = "iTerm" if "iterm" in host_app_name.lower() else host_app_name
+
+    if host_kind == "terminal" and app_name == "iTerm" and folder and _focus_iterm_session(folder, tty):
         logger.info("Focused iTerm session for %s", instance.display_name)
         return True
 
-    if _focus_terminal_app(app_name):
+    if host_kind == "terminal" and _focus_terminal_app(app_name):
         logger.info("Focused %s for %s", app_name, instance.display_name)
         return True
 
-    terminal_pid = instance.extra.get("terminal_pid")
-    if terminal_pid and focus_process(int(terminal_pid)):
-        logger.info("Focused terminal pid %s for %s", terminal_pid, instance.display_name)
+    if host_pid and focus_process(int(host_pid)):
+        logger.info("Focused host pid %s for %s", host_pid, instance.display_name)
         return True
 
     shell_pid = instance.extra.get("shell_pid")
