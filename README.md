@@ -24,22 +24,97 @@ macOS 菜单栏 / Windows 系统托盘 + 悬浮面板，实时监控 **Cursor**�
 | Python | 独立 app 无需安装；源码版需 3.9+ | 源码版需 3.9+（`run.ps1` 自动建 venv） |
 | 权限 | 辅助功能 (Accessibility) | 无额外系统权限（Hook 需写入用户配置目录） |
 
-### 直接下载（macOS 推荐）
+### macOS 安装（推荐：独立 app 包）
 
-无需 Python、无需 `pip install`，解压即用：
+无需 Python、无需 `pip install`，下载 zip 解压即用。
+
+#### 1. 下载并解压
 
 1. 打开 **[Releases 页面](https://github.com/JiayuK/agent-light/releases/latest)**
 2. 下载 **`agent-light-x.x.x-macos-app.zip`**（独立应用，约 20MB）
-3. 解压后进入目录，执行：
+3. 双击 zip 解压，得到目录（示例）：
+
+```
+agent-light-1.1.0-macos-app/
+├── Agent Light.app    # 可拖入「应用程序」文件夹
+└── run-app.sh         # 启动脚本（推荐首次使用）
+```
+
+> **架构**：当前 Release 独立包为 **Apple Silicon (arm64)** 构建。**Intel Mac** 请改用下方「源码版（macOS 开发者）」的 `./run.sh`。
+
+---
+
+> ### ⚠️ 首次打开必读：macOS 可能拦截未签名应用
+>
+> Agent Light 为开源项目，**未做 Apple 开发者签名**。从 GitHub 下载后首次启动，系统可能提示「无法打开」或「来自身份不明的开发者」。
+>
+> **任选一种方式放行（只需操作一次）：**
+>
+> 1. **右键打开（推荐）**  
+>    在 Finder 中 **右键** `Agent Light.app` → 选择 **「打开」** → 在弹窗中再次点 **「打开」**。
+>
+> 2. **系统设置放行**  
+>    若双击被拦截，打开 **系统设置 → 隐私与安全性**，在页面底部找到被阻止的提示，点 **「仍要打开」**。
+>
+> 3. **终端移除隔离属性（进阶）**  
+>    若仍无法打开，在终端执行（将路径换成你的实际解压位置）：
+>    ```bash
+>    xattr -cr "/path/to/agent-light-x.x.x-macos-app/Agent Light.app"
+>    ```
+>
+> 放行后，之后可直接双击启动，无需重复上述步骤。
+
+---
+
+#### 2. 启动应用
+
+**方式 A：脚本启动（推荐，尤其首次使用）**
+
+在终端进入解压目录：
 
 ```bash
-cd <解压后的目录>   # 例如解压到 ~/Applications 后进入对应文件夹
+cd ~/Downloads/agent-light-1.1.0-macos-app   # 改成你的实际路径
 
 chmod +x run-app.sh
 ./run-app.sh
 ```
 
-看到 `✓ Agent Light 已启动` 后，菜单栏会出现监控图标。也可双击 `Agent Light.app` 启动（推荐仍用 `run-app.sh`，便于 `stop` / `status` / 安装 Hook）。
+看到 `✓ Agent Light 已启动` 后，**菜单栏**会出现监控图标，屏幕上方出现悬浮面板。
+
+**方式 B：放入「应用程序」后双击**
+
+1. 将 `Agent Light.app` **拖入** `/Applications`（应用程序）文件夹  
+2. 按上文 **⚠️ 首次打开必读** 完成放行  
+3. 在启动台或 Finder 中 **双击** `Agent Light` 即可使用  
+
+> 日常双击 app 启动完全可行。需要 `stop`、`install-hooks` 等命令时，请回到解压目录执行 `./run-app.sh <子命令>`，或使用源码目录的 `./run.sh`。
+
+#### 3. 授予辅助功能权限（每台 Mac 只需一次）
+
+Agent Light 需要读取窗口信息以检测 AI 工具状态：
+
+**系统设置 → 隐私与安全性 → 辅助功能** → 点 `+` 添加并打开开关：
+
+| 启动方式 | 需要添加的程序 |
+|----------|----------------|
+| `./run-app.sh` 或 `./run.sh` | 你使用的**终端**（Terminal / iTerm / Warp 等） |
+| 双击 `Agent Light.app` | **Agent Light** |
+
+`run-app.sh` 启动时会自动检测；若缺失会尝试打开系统设置页面。
+
+#### 4. 安装 Agent Hooks（建议首次配置）
+
+在解压目录执行：
+
+```bash
+./run-app.sh install-hooks
+```
+
+或在菜单栏图标中选择 **安装 Hook**。安装后请**重启** Cursor / Claude Code / Codex，再执行一次 Agent 任务。详见下文 [Agent Hooks](#agent-hooks)。
+
+#### 常用命令
+
+在含 `run-app.sh` 的目录执行：
 
 | 命令 | 说明 |
 |------|------|
@@ -50,9 +125,7 @@ chmod +x run-app.sh
 | `./run-app.sh install-hooks` | 安装 Agent Hooks |
 | `./run-app.sh paths` | 检测本机 AI 工具路径 |
 
-> **升级**：下载新版 zip，解压覆盖（或新目录），再 `./run-app.sh`；`~/.agent-light/` 设置会保留。
-
-> **架构**：macOS 独立 app 包为 **Apple Silicon (arm64)** 构建。Intel Mac 请用源码版 `./run.sh`。
+> **升级**：下载新版 zip，解压覆盖（或新目录），再 `./run-app.sh`；`~/.agent-light/` 中的设置与自定义风格会保留。
 
 ### Windows x64
 
@@ -121,9 +194,7 @@ agent-light --verbose    # 启用日志
 
 ### 辅助功能权限
 
-每台 Mac **只需配置一次**：
-
-**系统设置 → 隐私与安全性 → 辅助功能** → 添加并打开开关：
+macOS 独立 app 的安装步骤中已说明，此处为源码版补充：**系统设置 → 隐私与安全性 → 辅助功能** → 添加并打开开关：
 
 - 使用 **`./run-app.sh` / `./run.sh`**：添加对应**终端**（Terminal / iTerm / Warp 等）
 - **双击 `Agent Light.app`** 启动：添加 **Agent Light**
