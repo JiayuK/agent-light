@@ -1,0 +1,40 @@
+agent_light/__init__.py
+  bf6a31a711e40c05 3
+packaging/agent-light.spec
+  bf6a31a711e40c05 116-117
+agent_light/detector/cursor_window_conversations.py
+  bf6a31a711e40c05 8,10,50-52
+agent_light/detector/workspace_resolver.py
+  bf6a31a711e40c05 12,41-43
+agent_light/detector/cursor_log_utils.py
+  bf6a31a711e40c05 29-50
+agent_light/detector/process_scanner_win32.py
+  bf6a31a711e40c05 24,86,91-94
+agent_light/agent_hooks/store.py
+  bf6a31a711e40c05 303-326
+agent_light/detector/process_scanner_darwin.py
+  bf6a31a711e40c05 38,40,99,104-107
+pyproject.toml
+  bf6a31a711e40c05 7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.6-codex",
+  "base_commit_sha": "543c23aed6e00a45a2f2a1d23a763acf5dfcb9c6",
+  "prompts": {
+    "bf6a31a711e40c05": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "cc93634d-7854-4eb5-9ee3-d1cb75b941bb",
+        "model": "default"
+      },
+      "human_author": "JiayuK",
+      "messages": [],
+      "total_additions": 73,
+      "total_deletions": 43,
+      "accepted_lines": 72,
+      "overriden_lines": 0,
+      "messages_url": "https://codeaiapi.xinfei-inc.cn/cas/caa0ffb608bf9d54d5348cd3f0572f6c603517038572396ce8545cce260f6639"
+    }
+  }
+}
