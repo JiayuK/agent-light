@@ -113,8 +113,8 @@ app = BUNDLE(
     info_plist={
         "CFBundleName": "Agent Light",
         "CFBundleDisplayName": "Agent Light",
-        "CFBundleShortVersionString": "1.1.1",
-        "CFBundleVersion": "1.1.1",
+        "CFBundleShortVersionString": "1.1.2",
+        "CFBundleVersion": "1.1.2",
         "LSMinimumSystemVersion": "12.0",
         "LSUIElement": True,
         "NSHighResolutionCapable": True,

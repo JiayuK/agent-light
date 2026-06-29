@@ -5,8 +5,9 @@ from __future__ import annotations
 import logging
 import re
 import time
+from pathlib import Path
 
-from .cursor_log_utils import latest_session_dir, read_log_tail
+from .cursor_log_utils import latest_session_dir, iter_window_log_dirs, read_log_tail
 
 logger = logging.getLogger(__name__)
 
@@ -46,11 +47,10 @@ def _load_conversation_ids(window_key: str) -> list[str]:
     if not session:
         return []
 
-    window_dir = session / f"window{window_key}"
-    if not window_dir.is_dir():
-        return []
+    hooks_logs: list[Path] = []
+    for window_dir in iter_window_log_dirs(session, window_key):
+        hooks_logs.extend(window_dir.glob("output_*/cursor.hooks.*.log"))
 
-    hooks_logs = list(window_dir.glob("output_*/cursor.hooks.*.log"))
     if not hooks_logs:
         return []
 

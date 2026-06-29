@@ -35,8 +35,9 @@ TOOL_CONFIGS = [
 ]
 
 # extension-host (always-local|agent-exec|...) <workspace> [windowIndex-id]
+# Agent Windows mode may omit the host-type parentheses: extension-host  agent-light [6-34]
 CURSOR_HOST_RE = re.compile(
-    r"extension-host\s+\([^)]+\)\s+(.+?)\s+\[(\d+)-",
+    r"extension-host\s+(?:\([^)]+\)\s+)?(.+?)\s+\[(\d+)-",
     re.IGNORECASE,
 )
 CURSOR_RENDERER_RE = re.compile(r"--vscode-window-config=vscode:([a-f0-9-]+)")
@@ -95,11 +96,15 @@ def _scan_cursor_via_extension_hosts(main_pid: int) -> list[MonitoredInstance]:
 
             entry = windows.setdefault(
                 window_key,
-                {"workspace": workspace, "pids": [], "agent_exec_pid": None},
+                {"workspace": "", "pids": [], "agent_exec_pid": None},
             )
             entry["pids"].append(proc.info["pid"])
             if is_agent:
                 entry["agent_exec_pid"] = proc.info["pid"]
+            if workspace.lower() != "empty":
+                entry["workspace"] = workspace
+            elif not entry["workspace"]:
+                entry["workspace"] = workspace
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
 

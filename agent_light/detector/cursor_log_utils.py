@@ -26,6 +26,28 @@ def latest_session_dir() -> Path | None:
     return best
 
 
+def iter_window_log_dirs(session: Path, window_key: str) -> list[Path]:
+    """Return Cursor log dirs for a window index, including Agent Windows workbenches."""
+    key = str(window_key or "").strip()
+    if not key:
+        return []
+
+    dirs: list[Path] = []
+    exact = session / f"window{key}"
+    if exact.is_dir():
+        dirs.append(exact)
+
+    for path in sorted(session.glob(f"window{key}_wb*")):
+        if path.is_dir():
+            dirs.append(path)
+
+    dirs.sort(
+        key=lambda p: p.stat().st_mtime if p.exists() else 0.0,
+        reverse=True,
+    )
+    return dirs
+
+
 def read_log_tail(path: Path, max_bytes: int = 8192) -> str:
     try:
         size = path.stat().st_size

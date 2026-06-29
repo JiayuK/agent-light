@@ -21,7 +21,7 @@ CURSOR_EXE_NAMES = frozenset({"cursor.exe"})
 CLAUDE_DESKTOP_EXE_NAMES = frozenset({"claude.exe"})
 
 CURSOR_HOST_RE = re.compile(
-    r"extension-host\s+\([^)]+\)\s+(.+?)\s+\[(\d+)-",
+    r"extension-host\s+(?:\([^)]+\)\s+)?(.+?)\s+\[(\d+)-",
     re.IGNORECASE,
 )
 
@@ -83,11 +83,15 @@ def _scan_cursor_via_extension_hosts(main_pid: int) -> list[MonitoredInstance]:
 
             entry = windows.setdefault(
                 window_key,
-                {"workspace": workspace, "pids": [], "agent_exec_pid": None},
+                {"workspace": "", "pids": [], "agent_exec_pid": None},
             )
             entry["pids"].append(proc.info["pid"])
             if is_agent:
                 entry["agent_exec_pid"] = proc.info["pid"]
+            if workspace.lower() != "empty":
+                entry["workspace"] = workspace
+            elif not entry["workspace"]:
+                entry["workspace"] = workspace
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
 

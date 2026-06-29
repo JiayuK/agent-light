@@ -300,31 +300,31 @@ def lookup_state(
         from ..detector.cursor_window_conversations import recent_conversation_ids_for_window
 
         conversation_ids = recent_conversation_ids_for_window(str(window_key))
-        if not conversation_ids:
-            return None, ""
+        if conversation_ids:
+            allowed = set(conversation_ids)
 
-        allowed = set(conversation_ids)
+            for conversation_id in conversation_ids:
+                state, reason = _lookup_conversation_state(tool_name, workspace, conversation_id)
+                if state is not None:
+                    return state, reason
 
-        for conversation_id in conversation_ids:
-            state, reason = _lookup_conversation_state(tool_name, workspace, conversation_id)
+            # Legacy files: workspace-level filename but conversation_id inside JSON.
+            legacy_candidates: list[tuple[LightState, str, float]] = []
+            for path in _iter_state_files(tool_name):
+                record = _read_record(path)
+                if not record:
+                    continue
+                record_conv = record.get("conversation_id")
+                if not isinstance(record_conv, str) or record_conv not in allowed:
+                    continue
+                if not _workspace_matches(workspace, record):
+                    continue
+                parsed = _record_to_state(record)
+                if parsed is not None:
+                    legacy_candidates.append(parsed)
+
+            state, reason = _pick_best(legacy_candidates)
             if state is not None:
                 return state, reason
-
-        # Legacy files: workspace-level filename but conversation_id inside JSON.
-        legacy_candidates: list[tuple[LightState, str, float]] = []
-        for path in _iter_state_files(tool_name):
-            record = _read_record(path)
-            if not record:
-                continue
-            record_conv = record.get("conversation_id")
-            if not isinstance(record_conv, str) or record_conv not in allowed:
-                continue
-            if not _workspace_matches(workspace, record):
-                continue
-            parsed = _record_to_state(record)
-            if parsed is not None:
-                legacy_candidates.append(parsed)
-
-        return _pick_best(legacy_candidates)
 
     return _lookup_workspace_states(tool_name, workspace)
