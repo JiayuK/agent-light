@@ -1,0 +1,26 @@
+README.md
+  c80c9e4ff45329f1 193,562-563,565,585
+.github/workflows/build-windows.yml
+  c80c9e4ff45329f1 9-11,32-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.6-codex",
+  "base_commit_sha": "7676734d24aa28a6c5eec66367320d181d73469f",
+  "prompts": {
+    "c80c9e4ff45329f1": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "d892d561-0ba1-474d-ae19-9b8b5597702f",
+        "model": "default"
+      },
+      "human_author": "JiayuK",
+      "messages": [],
+      "total_additions": 30,
+      "total_deletions": 6,
+      "accepted_lines": 30,
+      "overriden_lines": 0,
+      "messages_url": "https://codeaiapi.xinfei-inc.cn/cas/e1926d9f4e5600013eb71d9299cc5ea76ff80de6c712a2ea5ea163b89442e11a"
+    }
+  }
+}
