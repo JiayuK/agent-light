@@ -92,45 +92,46 @@ class HookToolResult:
 def _wrapper_script(tool: str) -> str:
     data_home = f"$HOME/.{APP_SLUG}"
     pid_file = f"{data_home}/{APP_SLUG}.pid"
-    return f"""#!/bin/bash
+    return f"""#!/bin/sh
 # Agent Light — relay {tool} hook events to traffic-light state signals.
-# Skip quietly when Agent Light is not running (see {APP_SLUG}.pid).
+# Must always exit 0 so hooks never block the IDE.
 
 export AGENT_LIGHT_TOOL={tool}
 
-PID_FILE="{pid_file}"
-if [[ ! -f "$PID_FILE" ]] || ! kill -0 "$(cat "$PID_FILE" 2>/dev/null)" 2>/dev/null; then
-  echo '{{}}'
-  exit 0
-fi
-
-RELAY=""
-if [[ -f "{data_home}/agent-hooks/relay.txt" ]]; then
-  RELAY="$(tr -d '\\n' < "{data_home}/agent-hooks/relay.txt")"
-fi
-if [[ -n "$RELAY" && -x "$RELAY" ]]; then
-  "$RELAY" && exit 0
-fi
-
-PYTHON=""
-if [[ -f "{data_home}/agent-hooks/python.txt" ]]; then
-  PYTHON="$(tr -d '\\n' < "{data_home}/agent-hooks/python.txt")"
-elif [[ -f "{data_home}/cursor-hooks/python.txt" ]]; then
-  PYTHON="$(tr -d '\\n' < "{data_home}/cursor-hooks/python.txt")"
-fi
-if [[ -z "$PYTHON" || ! -x "$PYTHON" ]]; then
-  for candidate in python3.12 python3.11 python3.10 python3.9 python3; do
-    if command -v "$candidate" >/dev/null 2>&1; then
-      PYTHON="$(command -v "$candidate")"
-      break
+_run_relay() {{
+  if [ -f "{data_home}/agent-hooks/relay.txt" ]; then
+    relay=$(tr -d '\\n' < "{data_home}/agent-hooks/relay.txt")
+    if [ -n "$relay" ] && [ -x "$relay" ]; then
+      "$relay" >/dev/null 2>&1
+      return 0
     fi
-  done
-fi
-if [[ -n "$PYTHON" ]]; then
-  "$PYTHON" -m agent_light.agent_hooks.relay && exit 0
+  fi
+
+  python=""
+  if [ -f "{data_home}/agent-hooks/python.txt" ]; then
+    python=$(tr -d '\\n' < "{data_home}/agent-hooks/python.txt")
+  elif [ -f "{data_home}/cursor-hooks/python.txt" ]; then
+    python=$(tr -d '\\n' < "{data_home}/cursor-hooks/python.txt")
+  fi
+  if [ -z "$python" ] || [ ! -x "$python" ]; then
+    for candidate in python3.12 python3.11 python3.10 python3.9 python3; do
+      if command -v "$candidate" >/dev/null 2>&1; then
+        python=$(command -v "$candidate")
+        break
+      fi
+    done
+  fi
+  if [ -n "$python" ]; then
+    "$python" -m agent_light.agent_hooks.relay >/dev/null 2>&1
+  fi
+}}
+
+pid_file="{pid_file}"
+if [ -f "$pid_file" ] && kill -0 "$(cat "$pid_file" 2>/dev/null)" 2>/dev/null; then
+  _run_relay || :
 fi
 
-echo '{{}}'
+printf '%s\\n' '{{}}'
 exit 0
 """
 
@@ -178,12 +179,14 @@ exit /b 0
 
 def _save_hook_runtime(python_exe: str) -> None:
     HOOKS_ROOT.mkdir(parents=True, exist_ok=True)
-    PYTHON_PATH_FILE.write_text(python_exe + "\n", encoding="utf-8")
     relay = relay_executable()
     if relay is not None:
         RELAY_PATH_FILE.write_text(str(relay) + "\n", encoding="utf-8")
-    elif RELAY_PATH_FILE.is_file():
-        RELAY_PATH_FILE.unlink(missing_ok=True)
+        PYTHON_PATH_FILE.unlink(missing_ok=True)
+    else:
+        PYTHON_PATH_FILE.write_text(python_exe + "\n", encoding="utf-8")
+        if RELAY_PATH_FILE.is_file():
+            RELAY_PATH_FILE.unlink(missing_ok=True)
 
 
 def _save_python_path(python_exe: str) -> None:
@@ -410,7 +413,7 @@ def _script_is_valid(path: Path) -> bool:
     return (
         "agent_light.agent_hooks.relay" in text
         and "AGENT_LIGHT_TOOL" in text
-        and f"{APP_SLUG}.pid" in text
+        and "Must always exit 0" in text
     )
 
 
