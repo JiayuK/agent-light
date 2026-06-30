@@ -1,0 +1,24 @@
+README.md
+  bf6a31a711e40c05 588-590
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.6-codex",
+  "base_commit_sha": "d49a0531c3daf73d1215a5d10620efb4a2a132b0",
+  "prompts": {
+    "bf6a31a711e40c05": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "cc93634d-7854-4eb5-9ee3-d1cb75b941bb",
+        "model": "default"
+      },
+      "human_author": "JiayuK",
+      "messages": [],
+      "total_additions": 7,
+      "total_deletions": 1,
+      "accepted_lines": 6,
+      "overriden_lines": 1,
+      "messages_url": "https://codeaiapi.xinfei-inc.cn/cas/457272df65884fc4738d34dfaaf04f47c2bc9f7930f090e24dcb9defce7c5c6e"
+    }
+  }
+}
