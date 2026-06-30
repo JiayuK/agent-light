@@ -69,6 +69,21 @@ def install_signal_handlers() -> None:
     signal.signal(signal.SIGTERM, _handler)
 
 
+def is_agent_light_running() -> bool:
+    """Return True when the Agent Light main process appears to be running."""
+    try:
+        if not PID_FILE.is_file():
+            return False
+        pid = int(PID_FILE.read_text(encoding="utf-8").strip())
+        if pid <= 0:
+            return False
+        import psutil
+
+        return psutil.pid_exists(pid)
+    except (OSError, ValueError, ImportError):
+        return False
+
+
 def consume_shutdown_flag() -> bool:
     """Return True if an external stop was requested."""
     try:

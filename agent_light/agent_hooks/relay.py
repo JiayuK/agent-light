@@ -7,6 +7,7 @@ import logging
 import os
 import sys
 
+from ..shutdown import is_agent_light_running
 from .state_map import map_hook_event
 from .store import write_signal
 
@@ -24,24 +25,31 @@ def _resolve_tool() -> str:
 
 def run_relay() -> int:
     try:
-        payload = json.load(sys.stdin)
-    except json.JSONDecodeError:
-        print("{}")
-        return 0
+        if not is_agent_light_running():
+            print("{}")
+            return 0
 
-    if not isinstance(payload, dict):
-        print("{}")
-        return 0
+        try:
+            payload = json.load(sys.stdin)
+        except json.JSONDecodeError:
+            print("{}")
+            return 0
 
-    tool_name = _resolve_tool()
-    event = str(
-        payload.get("hook_event_name")
-        or payload.get("hookEventName")
-        or ""
-    )
-    state, reason = map_hook_event(event, payload)
-    if state is not None:
-        write_signal(tool_name, payload, state, reason)
+        if not isinstance(payload, dict):
+            print("{}")
+            return 0
+
+        tool_name = _resolve_tool()
+        event = str(
+            payload.get("hook_event_name")
+            or payload.get("hookEventName")
+            or ""
+        )
+        state, reason = map_hook_event(event, payload)
+        if state is not None:
+            write_signal(tool_name, payload, state, reason)
+    except Exception as exc:
+        logger.debug("Hook relay skipped: %s", exc)
 
     print("{}")
     return 0

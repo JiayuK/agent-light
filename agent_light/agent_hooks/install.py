@@ -91,18 +91,25 @@ class HookToolResult:
 
 def _wrapper_script(tool: str) -> str:
     data_home = f"$HOME/.{APP_SLUG}"
+    pid_file = f"{data_home}/{APP_SLUG}.pid"
     return f"""#!/bin/bash
 # Agent Light — relay {tool} hook events to traffic-light state signals.
-set -euo pipefail
+# Skip quietly when Agent Light is not running (see {APP_SLUG}.pid).
 
 export AGENT_LIGHT_TOOL={tool}
+
+PID_FILE="{pid_file}"
+if [[ ! -f "$PID_FILE" ]] || ! kill -0 "$(cat "$PID_FILE" 2>/dev/null)" 2>/dev/null; then
+  echo '{{}}'
+  exit 0
+fi
 
 RELAY=""
 if [[ -f "{data_home}/agent-hooks/relay.txt" ]]; then
   RELAY="$(tr -d '\\n' < "{data_home}/agent-hooks/relay.txt")"
 fi
 if [[ -n "$RELAY" && -x "$RELAY" ]]; then
-  exec "$RELAY"
+  "$RELAY" && exit 0
 fi
 
 PYTHON=""
@@ -119,20 +126,35 @@ if [[ -z "$PYTHON" || ! -x "$PYTHON" ]]; then
     fi
   done
 fi
-if [[ -z "$PYTHON" ]]; then
-  echo '{{}}' >&1
-  exit 0
+if [[ -n "$PYTHON" ]]; then
+  "$PYTHON" -m agent_light.agent_hooks.relay && exit 0
 fi
-exec "$PYTHON" -m agent_light.agent_hooks.relay
+
+echo '{{}}'
+exit 0
 """
 
 
 def _wrapper_script_cmd(tool: str) -> str:
     data_home = f"%USERPROFILE%\\.{APP_SLUG}"
+    pid_file = f"{data_home}\\{APP_SLUG}.pid"
     return f"""@echo off
 setlocal EnableExtensions
 set AGENT_LIGHT_TOOL={tool}
 set "DATA={data_home}"
+if not exist "{pid_file}" (
+  echo {{}}
+  exit /b 0
+)
+for /f "usebackq delims=" %%i in ("{pid_file}") do set "AL_PID=%%i"
+if not defined AL_PID (
+  echo {{}}
+  exit /b 0
+)
+tasklist /FI "PID eq %AL_PID%" 2>nul | find "%AL_PID%" >nul || (
+  echo {{}}
+  exit /b 0
+)
 if exist "%DATA%\\agent-hooks\\relay.txt" (
   set /p RELAY=<"%DATA%\\agent-hooks\\relay.txt"
   if exist "%RELAY%" (
@@ -385,7 +407,11 @@ def _script_is_valid(path: Path) -> bool:
         text = path.read_text(encoding="utf-8")
     except OSError:
         return False
-    return "agent_light.agent_hooks.relay" in text and "AGENT_LIGHT_TOOL" in text
+    return (
+        "agent_light.agent_hooks.relay" in text
+        and "AGENT_LIGHT_TOOL" in text
+        and f"{APP_SLUG}.pid" in text
+    )
 
 
 def _cursor_hook_command_registered(config: dict, command: str) -> bool:
