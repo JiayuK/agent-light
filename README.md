@@ -551,7 +551,7 @@ Agent Light **完全本地运行**，不向任何远程服务器上传数据，*
 
 **请勿提交**：`.venv/`、`*.egg-info/`、`.env`、本机 `~/.agent-light/` 或 `%USERPROFILE%\.agent-light\` 目录。
 
-## 发布 Release（维护者）
+## 发布 Release
 
 ```bash
 # 1. 更新 pyproject.toml 与 agent_light/__init__.py 中的版本号
@@ -585,7 +585,8 @@ Windows x64 独立包（需在 Windows 上执行）：
 
 或通过 GitHub Actions `Build Windows x64` workflow 自动构建 artifact。
 
-发布前检查：
+---
 
-- [ ] 确认未 `git add .venv` 或 `*.egg-info`
-- [ ] 内置 `assets/kun.*` 为娱乐向 GIF/图片，公开仓库请自行确认版权/肖像权是否可分发
+## 友链
+
+- [LINUX DO](https://linux.do/) — 一个真诚、友善、团结、专业的社区
