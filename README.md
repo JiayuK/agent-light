@@ -190,7 +190,7 @@ cd agent-light
 
 > **测试说明**：Windows x64 版已在代码层完成开发与 CI 构建，**尚未在真实 Windows 设备上人工验证**。若在 Windows 上遇到问题，欢迎提 Issue；macOS 版为日常主力平台并已实测。
 
-维护者在本机构建 Windows 包：`.\scripts\build-app-win.ps1`（需在 Windows x64 上运行）；或推送 tag 后由 GitHub Actions `Build Windows x64` 自动构建。
+维护者在本机构建 Windows 包：`.\scripts\build-app-win.ps1`（需在 Windows x64 上运行）；或推送 tag 后由 GitHub Actions `Build Windows x64` 自动构建并上传到对应 Release。
 
 ### 源码版（macOS 开发者）
 
@@ -559,17 +559,16 @@ Agent Light **完全本地运行**，不向任何远程服务器上传数据，*
 chmod +x scripts/build-release.sh scripts/build-app.sh
 ./scripts/build-release.sh
 
-# 3. Windows x64 包：在 Windows 上运行 .\scripts\build-app-win.ps1
-#    或推送 tag 后由 GitHub Actions 构建 artifact
+# 3. Windows x64 包：推送 tag 后由 GitHub Actions 自动构建并上传到 Release
+#    （也可在 Windows 上手动运行 .\scripts\build-app-win.ps1）
 
-# 4. 打 tag 并发布
+# 4. 打 tag 并发布（先上传 macOS 资源；Windows zip 由 CI 自动补上）
 git tag v1.1.0
 git push origin v1.1.0
 gh release create v1.1.0 \
   dist/agent-light-1.1.0-macos-app.zip \
   dist/agent-light-1.1.0-macos-source.zip \
   dist/agent-light-1.1.0-macos-source.tar.gz \
-  dist/agent-light-1.1.0-windows-x64.zip \
   --title "v1.1.0" \
   --notes "macOS: ./run-app.sh | Windows x64: ./run-app.ps1（未经真机测试）"
 ```
@@ -583,7 +582,7 @@ Windows x64 独立包（需在 Windows 上执行）：
 # 产出 dist/agent-light-x.x.x-windows-x64.zip
 ```
 
-或通过 GitHub Actions `Build Windows x64` workflow 自动构建 artifact。
+或通过 GitHub Actions `Build Windows x64` workflow 自动构建并上传到 Release。
 
 ---
 
