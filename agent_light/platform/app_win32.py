@@ -29,7 +29,7 @@ from ..tool_presence import (
     format_missing_tools_summary,
     get_available_tools,
 )
-from ..ui_win import WinTrafficLightPanel, show_style_manager
+from ..ui_win import WinTrafficLightPanel, show_color_god, show_style_manager
 from .main_thread import drain_win_queue
 
 logger = logging.getLogger(APP_LOGGER_NAME)
@@ -89,6 +89,9 @@ class WinApp:
         set_display_mode(mode)
         self._panel.set_display_mode(mode)
         self._rebuild_tray()
+
+    def _on_traffic_colors_changed(self) -> None:
+        self._panel.refresh_traffic_colors()
 
     def _on_styles_changed(self) -> None:
         mode = get_display_mode()
@@ -205,6 +208,7 @@ class WinApp:
             [
                 pystray.Menu.SEPARATOR,
                 pystray.MenuItem("我爱发明", lambda: show_style_manager(on_change=self._on_styles_changed, master=self._panel.tk_root)),
+                pystray.MenuItem("颜色の神", lambda: show_color_god(on_change=self._on_traffic_colors_changed, master=self._panel.tk_root)),
                 pystray.Menu.SEPARATOR,
                 pystray.MenuItem(self._hook_install_label, lambda: self._install_hooks()),
                 pystray.MenuItem("删除 Hook", lambda: self._uninstall_hooks()),

@@ -9,7 +9,8 @@ from typing import Callable
 
 from ..focus import focus_instance
 from ..models import LightState, MonitoredInstance
-from ..settings import get_display_mode
+from ..settings import get_display_mode, get_traffic_on_colors
+from ..traffic_colors import color_pairs_from_on
 from ..styles import asset_path, get_style
 from .image_assets import AnimatedGifLabel, assets_dir
 
@@ -22,11 +23,9 @@ PAD_X = 12
 PAD_Y = 10
 CLOSE_SIZE = 20
 
-DOT_COLORS = {
-    LightState.RUNNING: ("#ff2e26", "#8c241f"),
-    LightState.WAITING: ("#ffd100", "#8c6f00"),
-    LightState.IDLE: ("#26e661", "#1f7a37"),
-}
+
+def _traffic_dot_colors() -> dict[LightState, tuple[str, str]]:
+    return color_pairs_from_on(get_traffic_on_colors())
 
 STATE_TIPS = {
     LightState.RUNNING: "🔴 工作中",
@@ -81,7 +80,7 @@ class _TrafficItem(tk.Frame):
         self._instance = instance
         self._name.configure(text=_label_for_instance(instance))
         for state, canvas in self._dots.items():
-            on_c, off_c = DOT_COLORS[state]
+            on_c, off_c = _traffic_dot_colors()[state]
             color = on_c if instance.state == state else off_c
             canvas.delete("all")
             canvas.create_oval(2, 2, 20, 20, fill=color, outline="")
@@ -203,6 +202,10 @@ class WinTrafficLightPanel:
     def _handle_close(self) -> None:
         if self._on_close:
             self._on_close()
+
+    def refresh_traffic_colors(self) -> None:
+        if self._last_instances:
+            self.update(self._last_instances)
 
     def set_display_mode(self, display_mode: str) -> None:
         if self._display_mode == display_mode:

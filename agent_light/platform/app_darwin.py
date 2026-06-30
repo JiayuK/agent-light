@@ -31,6 +31,7 @@ from ..shutdown import (
 )
 from ..settings import get_display_mode, get_hooks_reminder_dismissed, set_display_mode, set_hooks_reminder_dismissed
 from ..styles import get_style, list_complete_styles, reload_styles
+from ..ui.color_god_window import show_color_god
 from ..ui.style_manager_window import show_style_manager
 from ..ui.traffic_light_panel import TrafficLightPanel
 
@@ -106,6 +107,10 @@ class AppDelegate(NSObject):
         invent = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("我爱发明", "openStyleManager:", "")
         invent.setTarget_(self)
         menu.addItem_(invent)
+
+        color_god = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("颜色の神", "openColorGod:", "")
+        color_god.setTarget_(self)
+        menu.addItem_(color_god)
 
         menu.addItem_(NSMenuItem.separatorItem())
         install_hooks = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("安装 Hook", "installHooks:", "")
@@ -340,6 +345,14 @@ class AppDelegate(NSObject):
 
     def openStyleManager_(self, sender) -> None:
         show_style_manager(on_change=self._on_styles_changed)
+
+    def openColorGod_(self, sender) -> None:
+        show_color_god(on_change=self._on_traffic_colors_changed)
+
+    def _on_traffic_colors_changed(self) -> None:
+        self._panel_manager.refresh_traffic_colors()
+        if self._panel_manager._last_instances:
+            self._panel_manager.update(self._panel_manager._last_instances)
 
     def _on_styles_changed(self) -> None:
         mode = get_display_mode()

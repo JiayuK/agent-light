@@ -27,7 +27,8 @@ from Foundation import NSMakeSize, NSZeroRect, NSObject
 
 from ..focus import focus_instance
 from ..models import LightState, MonitoredInstance
-from ..settings import get_display_mode
+from ..settings import get_display_mode, get_traffic_on_colors
+from ..traffic_colors import color_pairs_from_on
 from .custom_style_item import CustomStyleItemView
 from .kun_silhouette import KUN_ITEM_HEIGHT, KUN_ITEM_WIDTH, KunSilhouetteItemView
 from .view_utils import ClickPassthroughView, ItemClickTarget, make_instance_click_button
@@ -44,21 +45,52 @@ PANEL_PAD_H = 14.0
 PANEL_PAD_V = 10.0
 CLOSE_BTN = 18.0
 
-# Light colors — on: vivid; off: dim but still visible
-COLORS = {
-    LightState.RUNNING: (
-        NSColor.colorWithCalibratedRed_green_blue_alpha_(1.0, 0.18, 0.15, 1.0),
-        NSColor.colorWithCalibratedRed_green_blue_alpha_(0.55, 0.14, 0.12, 1.0),
-    ),
-    LightState.WAITING: (
-        NSColor.colorWithCalibratedRed_green_blue_alpha_(1.0, 0.82, 0.0, 1.0),
-        NSColor.colorWithCalibratedRed_green_blue_alpha_(0.55, 0.42, 0.0, 1.0),
-    ),
-    LightState.IDLE: (
-        NSColor.colorWithCalibratedRed_green_blue_alpha_(0.15, 0.90, 0.38, 1.0),
-        NSColor.colorWithCalibratedRed_green_blue_alpha_(0.12, 0.48, 0.22, 1.0),
-    ),
-}
+# Light colors — on: vivid; off: dim but still visible (defaults; overridden by settings)
+def _default_ns_colors() -> dict[LightState, tuple]:
+    return {
+        LightState.RUNNING: (
+            NSColor.colorWithCalibratedRed_green_blue_alpha_(1.0, 0.18, 0.15, 1.0),
+            NSColor.colorWithCalibratedRed_green_blue_alpha_(0.55, 0.14, 0.12, 1.0),
+        ),
+        LightState.WAITING: (
+            NSColor.colorWithCalibratedRed_green_blue_alpha_(1.0, 0.82, 0.0, 1.0),
+            NSColor.colorWithCalibratedRed_green_blue_alpha_(0.55, 0.42, 0.0, 1.0),
+        ),
+        LightState.IDLE: (
+            NSColor.colorWithCalibratedRed_green_blue_alpha_(0.15, 0.90, 0.38, 1.0),
+            NSColor.colorWithCalibratedRed_green_blue_alpha_(0.12, 0.48, 0.22, 1.0),
+        ),
+    }
+
+
+def _hex_to_ns_color(hex_value: str) -> NSColor | None:
+    from ..traffic_colors import normalize_hex
+
+    normalized = normalize_hex(hex_value)
+    if not normalized:
+        return None
+    raw = normalized[1:]
+    return NSColor.colorWithCalibratedRed_green_blue_alpha_(
+        int(raw[0:2], 16) / 255.0,
+        int(raw[2:4], 16) / 255.0,
+        int(raw[4:6], 16) / 255.0,
+        1.0,
+    )
+
+
+def _traffic_ns_colors() -> dict[LightState, tuple]:
+    pairs = color_pairs_from_on(get_traffic_on_colors())
+    defaults = _default_ns_colors()
+    colors: dict[LightState, tuple] = {}
+    for state in LightState:
+        on_hex, off_hex = pairs.get(state, ("#888888", "#444444"))
+        on_c = _hex_to_ns_color(on_hex)
+        off_c = _hex_to_ns_color(off_hex)
+        if on_c is None or off_c is None:
+            colors[state] = defaults[state]
+        else:
+            colors[state] = (on_c, off_c)
+    return colors
 
 PANEL_BG = NSColor.colorWithCalibratedRed_green_blue_alpha_(0.13, 0.14, 0.16, 0.94)
 HOUSING_BG = NSColor.colorWithCalibratedRed_green_blue_alpha_(0.08, 0.08, 0.10, 1.0)
@@ -164,8 +196,9 @@ class TrafficLightItemView(NSView):
 
         order = [LightState.RUNNING, LightState.WAITING, LightState.IDLE]
         y = housing_h - LIGHT_SIZE - 8
+        colors = _traffic_ns_colors()
         for state in order:
-            on_c, off_c = COLORS[state]
+            on_c, off_c = colors[state]
             dot = LightDotView.alloc().initWithFrame_(
                 NSMakeRect((ITEM_WIDTH - 8 - LIGHT_SIZE) / 2, y, LIGHT_SIZE, LIGHT_SIZE)
             )
@@ -211,6 +244,12 @@ class TrafficLightItemView(NSView):
             return self._short_label(instance.display_name.split(" · ")[-1])
         return self._short_label(instance.display_name)
 
+    def _refresh_traffic_colors(self) -> None:
+        colors = _traffic_ns_colors()
+        for state, dot in self._dots.items():
+            on_c, off_c = colors[state]
+            dot.setup_colors(on_c, off_c)
+
     def updateInstance_(self, instance: MonitoredInstance) -> None:
         self._instance = instance
         active = instance.state
@@ -247,6 +286,11 @@ class TrafficLightContainerView(NSView):
         self._instances: list[MonitoredInstance] = []
         self._empty_label: NSTextField | None = None
         return self
+
+    def _refresh_traffic_colors(self) -> None:
+        for item in self._items.values():
+            if hasattr(item, "_refresh_traffic_colors"):
+                item._refresh_traffic_colors()
 
     def setDisplayMode_(self, display_mode: str) -> None:
         if self._display_mode == display_mode:
@@ -390,6 +434,10 @@ class TrafficLightPanel:
         self._click_target = ItemClickTarget.alloc().initWithCallback_(focus_instance)
         self._display_mode = get_display_mode()
         self._last_instances: list[MonitoredInstance] = []
+
+    def refresh_traffic_colors(self) -> None:
+        if self._container:
+            self._container._refresh_traffic_colors()
 
     def set_display_mode(self, display_mode: str) -> None:
         if self._display_mode == display_mode:

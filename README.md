@@ -348,6 +348,11 @@ Agent Light 会单独显示 **Claude Desktop** 卡片（与 **Claude Code · 终
 ```json
 {
   "display_mode": "traffic",
+  "traffic_on_colors": {
+    "running": "#ff2e26",
+    "waiting": "#ffd100",
+    "idle": "#26e661"
+  },
   "tool_paths": {
     "cursor_user_data_dir": "/path/to/Cursor",
     "cursor_config_dir": "/path/to/.cursor",
@@ -381,11 +386,40 @@ Agent Light 会单独显示 **Claude Desktop** 卡片（与 **Claude Code · 终
 | 我爱坤坤💗💗 | 内置 GIF 样式 |
 | {emoji} 风格名 | 自定义风格 |
 | 我爱发明 | 管理自定义图片/GIF |
+| 颜色の神 | 自定义交通灯三种状态的颜色 |
 | 安装 Hook / 删除 Hook | 增量安装或移除 Hooks |
 | 退出 Agent Light | 完全退出 |
 
 - 拖动面板空白区域可移动位置
 - 点击实例卡片可聚焦对应 AI 工具窗口
+
+---
+
+## 颜色の神（自定义交通灯颜色）
+
+交通灯模式（`display_mode: "traffic"`）下，三种状态默认使用红 / 黄 / 绿。通过菜单栏 / 托盘的 **颜色の神** 可自定义每种状态点亮时的颜色，macOS 与 Windows 均已适配。
+
+| 状态 | 含义 | 默认颜色 |
+|------|------|----------|
+| `running` | 🔴 工作中 | `#ff2e26` |
+| `waiting` | 🟡 待确认 | `#ffd100` |
+| `idle` | 🟢 空闲 | `#26e661` |
+
+使用方式：
+
+- **选择…**：打开系统取色器选取颜色（macOS 为 `NSColorPanel`，Windows 为系统颜色对话框）。
+- **手动输入**：在输入框填写 `#RRGGBB` 十六进制颜色，回车或失焦生效。
+- **预览**：窗口内三个圆点实时显示当前配色。
+- **恢复默认**：把三种颜色重置为红 / 黄 / 绿（仅修改草稿）。
+- **保存**：写入配置并立即刷新悬浮面板。
+
+说明：
+
+- 配置持久化在 `~/.agent-light/settings.json` 的 `traffic_on_colors` 字段（仅保存「点亮」颜色）。
+- 未点亮状态的暗色会按主色自动推导（约 55% 亮度），无需单独设置。
+- 也可直接编辑 `settings.json` 的 `traffic_on_colors`；非法或缺失的颜色会回退到对应默认值。
+- 仅作用于 **交通灯模式**；坤坤与自定义图片风格不受影响。
+- 设置窗口会出现在鼠标附近。macOS 上打开期间会临时显示 Dock 图标（系统取色器需要常规激活状态），关闭后恢复无 Dock 图标的菜单栏模式。
 
 ---
 

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .constants import APP_DATA_DIR
+from .traffic_colors import default_on_colors, sanitize_on_colors
 
 logger = logging.getLogger(__name__)
 
@@ -17,12 +18,13 @@ SETTINGS_FILE = SETTINGS_DIR / "settings.json"
 # display_mode: "traffic" | "kun" | "custom:{style_id}"
 _display_mode = "traffic"
 _tool_paths: dict[str, str] = {}
+_traffic_on_colors: dict[str, str] = default_on_colors()
 _hooks_reminder_dismissed = False
 _loaded = False
 
 
 def _load() -> None:
-    global _display_mode, _tool_paths, _hooks_reminder_dismissed, _loaded
+    global _display_mode, _tool_paths, _traffic_on_colors, _hooks_reminder_dismissed, _loaded
     if _loaded:
         return
     try:
@@ -41,6 +43,11 @@ def _load() -> None:
                     for k, v in raw_paths.items()
                     if isinstance(k, str) and isinstance(v, str) and v.strip()
                 }
+            raw_colors = data.get("traffic_on_colors")
+            if isinstance(raw_colors, dict):
+                _traffic_on_colors = sanitize_on_colors(
+                    {str(k): str(v) for k, v in raw_colors.items() if isinstance(k, str) and isinstance(v, str)}
+                )
             if "hooks_reminder_dismissed" in data:
                 _hooks_reminder_dismissed = bool(data["hooks_reminder_dismissed"])
     except (OSError, json.JSONDecodeError) as exc:
@@ -53,6 +60,7 @@ def _save() -> None:
     payload: dict[str, Any] = {
         "display_mode": _display_mode,
         "hooks_reminder_dismissed": _hooks_reminder_dismissed,
+        "traffic_on_colors": dict(_traffic_on_colors),
     }
     if _tool_paths:
         payload["tool_paths"] = dict(_tool_paths)
@@ -85,4 +93,23 @@ def set_hooks_reminder_dismissed(dismissed: bool) -> None:
     global _hooks_reminder_dismissed
     _load()
     _hooks_reminder_dismissed = dismissed
+    _save()
+
+
+def get_traffic_on_colors() -> dict[str, str]:
+    _load()
+    return dict(_traffic_on_colors)
+
+
+def set_traffic_on_colors(colors: dict[str, str]) -> None:
+    global _traffic_on_colors
+    _load()
+    _traffic_on_colors = sanitize_on_colors(colors)
+    _save()
+
+
+def reset_traffic_on_colors() -> None:
+    global _traffic_on_colors
+    _load()
+    _traffic_on_colors = default_on_colors()
     _save()
