@@ -1,0 +1,24 @@
+agent_light/agent_hooks/install.py
+  c80c9e4ff45329f1 95,97,101-106,108,110-127,129-131,134,185-189,416
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.6-codex",
+  "base_commit_sha": "c5566ded2e9179f70516fbf3434ccb930880a45a",
+  "prompts": {
+    "c80c9e4ff45329f1": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "d892d561-0ba1-474d-ae19-9b8b5597702f",
+        "model": "default"
+      },
+      "human_author": "JiayuK",
+      "messages": [],
+      "total_additions": 38,
+      "total_deletions": 35,
+      "accepted_lines": 38,
+      "overriden_lines": 0,
+      "messages_url": "https://codeaiapi.xinfei-inc.cn/cas/775221d4ba035c78a140f12e234e3e6d3b2c42f63b6d37589c72bc5520db7dc5"
+    }
+  }
+}
