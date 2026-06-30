@@ -1,0 +1,46 @@
+agent_light/settings.py
+  140fe508f68224b9 11,21,27,46-50,63,97-115
+pyproject.toml
+  140fe508f68224b9 7
+agent_light/__init__.py
+  140fe508f68224b9 3
+agent_light/traffic_colors.py
+  140fe508f68224b9 1-77
+README.md
+  140fe508f68224b9 351-355,389,398-422
+agent_light/platform/app_darwin.py
+  140fe508f68224b9 34,111-114,349-356
+agent_light/ui/traffic_light_panel.py
+  140fe508f68224b9 30-31,48-93,199,201,247-252,290-294,438-441
+agent_light/ui_win/color_god.py
+  140fe508f68224b9 1-171
+agent_light/ui_win/traffic_light_panel.py
+  140fe508f68224b9 12-13,26-28,83,206-209
+agent_light/ui/color_god_window.py
+  140fe508f68224b9 1-359
+agent_light/platform/app_win32.py
+  140fe508f68224b9 32,93-95,211
+agent_light/ui_win/__init__.py
+  140fe508f68224b9 3,7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.6-codex",
+  "base_commit_sha": "0ac827f5c9e6842dca7da9e2c08203f44f538f2c",
+  "prompts": {
+    "140fe508f68224b9": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "e7955b8c-ed26-4a93-8e17-806612adf1cd",
+        "model": "default"
+      },
+      "human_author": "JiayuK",
+      "messages": [],
+      "total_additions": 813,
+      "total_deletions": 76,
+      "accepted_lines": 766,
+      "overriden_lines": 0,
+      "messages_url": "https://codeaiapi.xinfei-inc.cn/cas/3d48fd5a058ed999103e9b6692965e6f4260d04d184ad5eb91341fd52cd77fd6"
+    }
+  }
+}
