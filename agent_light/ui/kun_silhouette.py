@@ -29,6 +29,19 @@ GIF_DISPLAY_H = 88.0
 _assets: dict[str, NSImage | None] = {}
 
 
+def _state_tip_label(instance: MonitoredInstance) -> str:
+    if instance.state == LightState.WAITING and (
+        "Hook 未安装" in instance.state_reason or "信号过期" in instance.state_reason
+    ):
+        return "😄 需处理"
+    labels = {
+        LightState.RUNNING: "💃 舞动中",
+        LightState.WAITING: "😄 待确认",
+        LightState.IDLE: "💗 完成",
+    }
+    return labels.get(instance.state, "")
+
+
 def _assets_dir() -> Path:
     return Path(__file__).resolve().parent.parent / "assets"
 
@@ -128,12 +141,7 @@ class KunSilhouetteItemView(NSView):
         self._click_btn.setFrame_(self.bounds())
         self.addSubview_(self._click_btn)
 
-        labels = {
-            LightState.RUNNING: "💃 舞动中",
-            LightState.WAITING: "😄 待确认",
-            LightState.IDLE: "💗 完成",
-        }
-        tip = f"{instance.display_name}\n{labels.get(self._state, '')}\n{instance.state_reason}"
+        tip = f"{instance.display_name}\n{_state_tip_label(instance)}\n{instance.state_reason}"
         self.setToolTip_(tip)
         self._click_btn.setToolTip_(tip)
 

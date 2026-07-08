@@ -96,6 +96,19 @@ PANEL_BG = NSColor.colorWithCalibratedRed_green_blue_alpha_(0.13, 0.14, 0.16, 0.
 HOUSING_BG = NSColor.colorWithCalibratedRed_green_blue_alpha_(0.08, 0.08, 0.10, 1.0)
 
 
+def _state_tip_label(instance: MonitoredInstance) -> str:
+    if instance.state == LightState.WAITING and (
+        "Hook 未安装" in instance.state_reason or "信号过期" in instance.state_reason
+    ):
+        return "🟡 需处理"
+    labels = {
+        LightState.RUNNING: "🔴 工作中",
+        LightState.WAITING: "🟡 待确认",
+        LightState.IDLE: "🟢 空闲",
+    }
+    return labels.get(instance.state, "")
+
+
 class PanelRootView(NSView):
     """Root content view — keeps the close button above instance items."""
 
@@ -262,12 +275,7 @@ class TrafficLightItemView(NSView):
         self._click_btn.setFrame_(self.bounds())
         self.addSubview_(self._click_btn)
 
-        labels = {
-            LightState.RUNNING: "🔴 工作中",
-            LightState.WAITING: "🟡 待确认",
-            LightState.IDLE: "🟢 空闲",
-        }
-        tip = f"{instance.display_name}\n{labels.get(active, '')}\n{instance.state_reason}"
+        tip = f"{instance.display_name}\n{_state_tip_label(instance)}\n{instance.state_reason}"
         self.setToolTip_(tip)
         self._click_btn.setToolTip_(tip)
 

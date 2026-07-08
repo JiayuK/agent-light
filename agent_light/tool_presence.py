@@ -274,7 +274,7 @@ def resolve_codex_home() -> Path:
 def _detect_cursor() -> ToolPresence:
     config_dir = resolve_cursor_config_dir()
     if _path_is_file(config_dir / "hooks" / "agent-light-signal.sh"):
-        return ToolPresence(TOOL_CURSOR, True, "已安装 Agent Light Hook", config_dir)
+        return ToolPresence(TOOL_CURSOR, True, "检测到 Agent Light Hook 脚本", config_dir)
 
     for user_data in _cursor_user_data_candidates():
         if _path_is_dir(user_data):
@@ -296,7 +296,7 @@ def _detect_cursor() -> ToolPresence:
 def _detect_claude() -> ToolPresence:
     config_dir = resolve_claude_config_dir()
     if _path_is_file(config_dir / "hooks" / "agent-light-claude-signal.sh"):
-        return ToolPresence(TOOL_CLAUDE, True, "已安装 Agent Light Hook", config_dir)
+        return ToolPresence(TOOL_CLAUDE, True, "检测到 Agent Light Hook 脚本", config_dir)
 
     for marker in ("settings.json", "projects", "hooks"):
         target = config_dir / marker
@@ -313,7 +313,7 @@ def _detect_claude() -> ToolPresence:
 def _detect_codex() -> ToolPresence:
     config_dir = resolve_codex_home()
     if _path_is_file(config_dir / "hooks" / "agent-light-codex-signal.sh"):
-        return ToolPresence(TOOL_CODEX, True, "已安装 Agent Light Hook", config_dir)
+        return ToolPresence(TOOL_CODEX, True, "检测到 Agent Light Hook 脚本", config_dir)
 
     for marker in ("hooks.json", "config.toml", "sessions", "hooks"):
         target = config_dir / marker

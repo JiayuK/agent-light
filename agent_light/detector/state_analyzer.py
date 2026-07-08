@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 
 from ..models import LightState, MonitoredInstance
 from .window_api import collect_window_text, get_app_windows
@@ -35,6 +36,54 @@ RUNNING_PATTERNS = [
 WAITING_RE = [re.compile(p, re.IGNORECASE) for p in WAITING_PATTERNS]
 RUNNING_RE = [re.compile(p, re.IGNORECASE) for p in RUNNING_PATTERNS]
 
+_HOOK_STATUS_TTL_SEC = 5.0
+_hook_status_cache_at = 0.0
+_hook_status_cache: dict[str, bool] = {}
+
+
+def _hook_install_status() -> dict[str, bool]:
+    global _hook_status_cache_at
+    now = time.time()
+    if _hook_status_cache and now - _hook_status_cache_at <= _HOOK_STATUS_TTL_SEC:
+        return dict(_hook_status_cache)
+    try:
+        from ..agent_hooks import hooks_install_status
+
+        status = hooks_install_status()
+    except Exception as exc:
+        logger.debug("Failed to read hook install status: %s", exc)
+        status = {}
+    _hook_status_cache.clear()
+    _hook_status_cache.update({str(k): bool(v) for k, v in status.items()})
+    _hook_status_cache_at = now
+    return dict(_hook_status_cache)
+
+
+def _hook_status_key(tool_name: str) -> str:
+    if tool_name in ("claude-code", "claude-desktop"):
+        return "claude"
+    return tool_name
+
+
+def _hook_warning_reason(tool_name: str) -> str:
+    labels = {
+        "cursor": "Cursor",
+        "codex": "Codex",
+        "claude-code": "Claude Code",
+        "claude-desktop": "Claude Code",
+    }
+    label = labels.get(tool_name, tool_name)
+    return f"hook: {label} Hook 未安装或配置不完整，请在菜单栏安装 Hook 并重启工具"
+
+
+def _apply_hook_warning_if_needed(instance: MonitoredInstance) -> bool:
+    status = _hook_install_status()
+    if status.get(_hook_status_key(instance.tool_name), False):
+        return False
+    instance.state = LightState.WAITING
+    instance.state_reason = _hook_warning_reason(instance.tool_name)
+    return True
+
 
 def _match_patterns(text: str, patterns: list[re.Pattern[str]]) -> str | None:
     for pat in patterns:
@@ -59,6 +108,8 @@ def _apply_hook_state(
 
 
 def _analyze_cursor_instance(instance: MonitoredInstance) -> MonitoredInstance:
+    if _apply_hook_warning_if_needed(instance):
+        return instance
     workspace = str(instance.extra.get("workspace") or instance.extra.get("project") or "")
     window_key = instance.extra.get("window_key")
     hook_state, hook_reason = analyze_cursor_hooks(
@@ -68,6 +119,8 @@ def _analyze_cursor_instance(instance: MonitoredInstance) -> MonitoredInstance:
 
 
 def _analyze_cli_instance(instance: MonitoredInstance) -> MonitoredInstance:
+    if _apply_hook_warning_if_needed(instance):
+        return instance
     cwd = str(instance.extra.get("cwd") or "")
     hook_state, hook_reason = analyze_cli_hooks(instance.tool_name, cwd)
     return _apply_hook_state(instance, hook_state, hook_reason)
@@ -79,6 +132,8 @@ def _analyze_claude_desktop_instance(instance: MonitoredInstance) -> MonitoredIn
     session_text = str(session_id).strip() if session_id else None
 
     if cwd:
+        if _apply_hook_warning_if_needed(instance):
+            return instance
         hook_state, hook_reason = analyze_claude_desktop_hooks(cwd, session_text)
         return _apply_hook_state(instance, hook_state, hook_reason)
 
