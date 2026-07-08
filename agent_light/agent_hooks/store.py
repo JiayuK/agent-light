@@ -138,22 +138,38 @@ def _read_record(path: Path) -> dict[str, Any] | None:
     return data if isinstance(data, dict) else None
 
 
-def _record_is_fresh(record: dict[str, Any]) -> bool:
+def _record_updated_at(record: dict[str, Any]) -> float | None:
     try:
         updated = float(record.get("updated_at", 0))
     except (TypeError, ValueError):
+        return None
+    return updated if updated > 0 else None
+
+
+def _ttl_for_state(state: LightState) -> float:
+    if state == LightState.WAITING:
+        return WAITING_TTL_SEC
+    if state == LightState.RUNNING:
+        return RUNNING_TTL_SEC
+    return IDLE_TTL_SEC
+
+
+def _record_age(record: dict[str, Any]) -> float | None:
+    updated = _record_updated_at(record)
+    if updated is None:
+        return None
+    return time.time() - updated
+
+
+def _record_is_fresh(record: dict[str, Any]) -> bool:
+    age = _record_age(record)
+    if age is None:
         return False
-
-    age = time.time() - updated
-    state = str(record.get("state") or "")
-
-    if state == LightState.WAITING.value:
-        return age <= WAITING_TTL_SEC
-    if state == LightState.RUNNING.value:
-        return age <= RUNNING_TTL_SEC
-    if state == LightState.IDLE.value:
-        return age <= IDLE_TTL_SEC
-    return False
+    try:
+        state = LightState(str(record.get("state")))
+    except ValueError:
+        return False
+    return age <= _ttl_for_state(state)
 
 
 def _workspace_matches(instance_workspace: str, record: dict[str, Any]) -> bool:
@@ -200,8 +216,37 @@ def _record_to_state(record: dict[str, Any]) -> tuple[LightState, str, float] | 
     except ValueError:
         return None
     reason = str(record.get("reason") or "hook")
-    updated = float(record.get("updated_at", 0))
+    updated = _record_updated_at(record)
+    if updated is None:
+        return None
     return state, reason, updated
+
+
+def _format_age(age: float) -> str:
+    if age < 60:
+        return f"{age:.0f}s"
+    if age < 3600:
+        return f"{age / 60:.0f}m"
+    return f"{age / 3600:.1f}h"
+
+
+def _record_to_stale_warning(record: dict[str, Any]) -> tuple[LightState, str, float] | None:
+    age = _record_age(record)
+    updated = _record_updated_at(record)
+    if age is None or updated is None:
+        return None
+    try:
+        state = LightState(str(record.get("state")))
+    except ValueError:
+        return None
+    if age <= _ttl_for_state(state):
+        return None
+    reason = str(record.get("reason") or "hook")
+    return (
+        LightState.WAITING,
+        f"hook: 信号过期（上次 {state.value} {_format_age(age)} 前：{reason}）",
+        updated,
+    )
 
 
 def _pick_best(
@@ -223,10 +268,12 @@ def _lookup_conversation_state(
     record = _read_record(path)
     if not record:
         return None, ""
+    if not _workspace_matches(workspace, record):
+        return None, ""
     parsed = _record_to_state(record)
     if parsed is None:
-        return None, ""
-    if not _workspace_matches(workspace, record):
+        parsed = _record_to_stale_warning(record)
+    if parsed is None:
         return None, ""
     state, reason, _ = parsed
     return state, reason
@@ -237,6 +284,7 @@ def _lookup_workspace_states(
     workspace: str,
 ) -> tuple[LightState | None, str]:
     candidates: list[tuple[LightState, str, float]] = []
+    stale_candidates: list[tuple[LightState, str, float]] = []
 
     for path in _iter_state_files(tool_name):
         record = _read_record(path)
@@ -248,11 +296,17 @@ def _lookup_workspace_states(
         if not _workspace_matches(workspace, record):
             continue
         parsed = _record_to_state(record)
-        if parsed is None:
+        if parsed is not None:
+            candidates.append(parsed)
             continue
-        candidates.append(parsed)
+        stale = _record_to_stale_warning(record)
+        if stale is not None:
+            stale_candidates.append(stale)
 
-    return _pick_best(candidates)
+    state, reason = _pick_best(candidates)
+    if state is not None:
+        return state, reason
+    return _pick_best(stale_candidates)
 
 
 def _lookup_session_states(
@@ -261,6 +315,7 @@ def _lookup_session_states(
     session_id: str,
 ) -> tuple[LightState | None, str]:
     candidates: list[tuple[LightState, str, float]] = []
+    stale_candidates: list[tuple[LightState, str, float]] = []
     target_session = session_id.strip()
 
     for path in _iter_state_files(tool_name):
@@ -278,8 +333,15 @@ def _lookup_session_states(
         parsed = _record_to_state(record)
         if parsed is not None:
             candidates.append(parsed)
+            continue
+        stale = _record_to_stale_warning(record)
+        if stale is not None:
+            stale_candidates.append(stale)
 
-    return _pick_best(candidates)
+    state, reason = _pick_best(candidates)
+    if state is not None:
+        return state, reason
+    return _pick_best(stale_candidates)
 
 
 def lookup_state(
@@ -310,6 +372,7 @@ def lookup_state(
 
             # Legacy files: workspace-level filename but conversation_id inside JSON.
             legacy_candidates: list[tuple[LightState, str, float]] = []
+            stale_legacy_candidates: list[tuple[LightState, str, float]] = []
             for path in _iter_state_files(tool_name):
                 record = _read_record(path)
                 if not record:
@@ -322,8 +385,15 @@ def lookup_state(
                 parsed = _record_to_state(record)
                 if parsed is not None:
                     legacy_candidates.append(parsed)
+                    continue
+                stale = _record_to_stale_warning(record)
+                if stale is not None:
+                    stale_legacy_candidates.append(stale)
 
             state, reason = _pick_best(legacy_candidates)
+            if state is not None:
+                return state, reason
+            state, reason = _pick_best(stale_legacy_candidates)
             if state is not None:
                 return state, reason
 

@@ -54,6 +54,14 @@ def _label_for_instance(instance: MonitoredInstance) -> str:
     return _short_label(instance.display_name)
 
 
+def _state_tip_label(instance: MonitoredInstance) -> str:
+    if instance.state == LightState.WAITING and (
+        "Hook 未安装" in instance.state_reason or "信号过期" in instance.state_reason
+    ):
+        return "🟡 需处理"
+    return STATE_TIPS.get(instance.state, "")
+
+
 class _TrafficItem(tk.Frame):
     def __init__(self, master: tk.Misc, on_click: Callable[[MonitoredInstance], None]) -> None:
         super().__init__(master, bg="#212121", width=ITEM_W, height=ITEM_H)
@@ -84,7 +92,7 @@ class _TrafficItem(tk.Frame):
             color = on_c if instance.state == state else off_c
             canvas.delete("all")
             canvas.create_oval(2, 2, 20, 20, fill=color, outline="")
-        tip = f"{instance.display_name}\n{STATE_TIPS.get(instance.state, '')}\n{instance.state_reason}"
+        tip = f"{instance.display_name}\n{_state_tip_label(instance)}\n{instance.state_reason}"
         self.configure(cursor="hand2")
         for w in (self, self._name):
             w.bind("<Enter>", lambda _e, t=tip: self._show_tip(t))
